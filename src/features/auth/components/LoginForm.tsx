@@ -1,14 +1,9 @@
 import type { FormEvent } from "react";
 import { useLogin } from "../hooks/useLogin";
-import type { AuthSession } from "../types/auth.types";
 
-type LoginFormProps = {
-  onSuccess: (session: AuthSession) => void;
-};
-
-export function LoginForm({ onSuccess }: LoginFormProps) {
+export function LoginForm() {
   const { credentials, errors, isLoading, submit, updateField } =
-    useLogin(onSuccess);
+    useLogin();
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

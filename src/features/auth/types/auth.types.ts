@@ -13,6 +13,21 @@ export type AuthTokenResponse = {
   non_field_errors?: string[];
 };
 
+export type AuthMenuItem = {
+  id?: string | number;
+  key?: string;
+  label?: string;
+  title?: string;
+  name?: string;
+  path?: string;
+  url?: string;
+  route?: string;
+  href?: string;
+  icon?: string | null;
+  children?: AuthMenuItem[];
+  items?: AuthMenuItem[];
+};
+
 export type AuthUser = {
   id: number;
   username: string;
@@ -23,6 +38,10 @@ export type AuthUser = {
   is_staff: boolean;
   is_superuser: boolean;
   groups: string[];
+  roles?: string[];
+  primary_role?: string | null;
+  primaryRole?: string | null;
+  role?: string | null;
   perfil_id: number | null;
   estudiante_id: number | null;
   docente_id: number | null;
@@ -33,4 +52,8 @@ export type AuthSession = {
   token: string;
   refreshToken?: string;
   user: AuthUser;
+  roles: string[];
+  primaryRole: string | null;
+  menuItems: AuthMenuItem[];
+  dashboard: unknown;
 };

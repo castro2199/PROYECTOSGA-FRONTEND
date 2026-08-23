@@ -28,8 +28,20 @@ const groupPermissions: Record<string, AdminPermission[]> = {
   ],
 };
 
+const groupAliases: Record<string, string> = {
+  administradores: "administrador",
+  directivos: "directivo",
+  profesor: "docente",
+  profesores: "docente",
+  teacher: "docente",
+  teachers: "docente",
+  docente: "docente",
+  docentes: "docente",
+};
+
 function normalizeGroup(group: string) {
-  return group.trim().toLowerCase();
+  const normalized = group.trim().toLowerCase();
+  return groupAliases[normalized] ?? normalized;
 }
 
 export function getUserPermissions(user: AuthUser) {
@@ -44,6 +56,12 @@ export function getUserPermissions(user: AuthUser) {
       permissions.add(permission);
     });
   });
+
+  if (user.docente_id) {
+    groupPermissions.docente.forEach((permission) => {
+      permissions.add(permission);
+    });
+  }
 
   return permissions;
 }

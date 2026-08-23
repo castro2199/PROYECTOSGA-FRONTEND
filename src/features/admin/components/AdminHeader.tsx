@@ -3,15 +3,30 @@ import type { AuthUser } from "../../auth/types/auth.types";
 type AdminHeaderProps = {
   onLogout: () => void;
   onToggleSidebar: () => void;
+  primaryRole: string | null;
   user: AuthUser;
 };
 
 export function AdminHeader({
   onLogout,
   onToggleSidebar,
+  primaryRole,
   user,
 }: AdminHeaderProps) {
   const displayName = user.full_name || user.username;
+  const roleLabel = primaryRole || user.groups[0] || "Usuario";
+  const normalizedRole = roleLabel.toLowerCase();
+  const panelTitle = normalizedRole.includes("admin")
+    ? "Panel administrativo"
+    : normalizedRole.includes("estudiante") || normalizedRole.includes("alumno")
+      ? "Portal del estudiante"
+      : normalizedRole.includes("apoderado") ||
+          normalizedRole.includes("padre") ||
+          normalizedRole.includes("madre")
+        ? "Portal del apoderado"
+      : normalizedRole.includes("docente")
+        ? "Portal docente"
+        : `Portal ${roleLabel}`;
 
   return (
     <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -30,7 +45,7 @@ export function AdminHeader({
               Sistema de Gestión Académica
             </p>
             <h1 className="text-lg font-bold text-gray-900">
-              Panel administrador
+              {panelTitle}
             </h1>
           </div>
         </div>
@@ -38,9 +53,7 @@ export function AdminHeader({
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">
             <p className="text-sm font-semibold text-gray-900">{displayName}</p>
-            <p className="text-xs text-gray-500">
-              {user.is_superuser ? "Administrador / Directivo" : "Usuario"}
-            </p>
+            <p className="text-xs text-gray-500">{roleLabel}</p>
           </div>
           <button
             className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-theme-xs transition hover:bg-gray-50"

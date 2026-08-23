@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { login, saveSession } from "../services/authService";
-import type { AuthSession, LoginCredentials } from "../types/auth.types";
+import { useAuth } from "./useAuth";
+import type { LoginCredentials } from "../types/auth.types";
 
 type LoginErrors = Partial<Record<keyof LoginCredentials | "form", string>>;
 
@@ -23,7 +23,8 @@ function validate(credentials: LoginCredentials) {
   return errors;
 }
 
-export function useLogin(onSuccess: (session: AuthSession) => void) {
+export function useLogin() {
+  const { login } = useAuth();
   const [credentials, setCredentials] =
     useState<LoginCredentials>(initialCredentials);
   const [errors, setErrors] = useState<LoginErrors>({});
@@ -53,13 +54,10 @@ export function useLogin(onSuccess: (session: AuthSession) => void) {
     setErrors({});
 
     try {
-      const session = await login({
+      await login({
         username: credentials.username.trim(),
         password: credentials.password,
       });
-
-      saveSession(session);
-      onSuccess(session);
     } catch (error) {
       setErrors({
         form:

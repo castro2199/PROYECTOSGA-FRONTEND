@@ -23,7 +23,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function formatLabel(value: string) {
   return value
     .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(/\bSummary\b/g, "Resumen");
 }
 
 function collectMetrics(value: unknown, prefix = ""): Metric[] {

@@ -3,9 +3,9 @@ import type {
   Incident,
   IncidentPayload,
   IncidentUpdatePayload,
-  PaginatedIncidentResponse,
 } from "../types/incident.types";
 import { formatApiObject } from "../utils/apiMessages";
+import { fetchAllPages } from "../utils/pagination";
 
 const INCIDENTS_URL = "/api/incidencias/";
 
@@ -22,18 +22,7 @@ async function readError(response: Response) {
 }
 
 export async function getIncidents(token: string): Promise<Incident[]> {
-  const response = await authFetch(INCIDENTS_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedIncidentResponse;
-  return data.results ?? [];
+  return fetchAllPages<Incident>(INCIDENTS_URL, token, readError);
 }
 
 export async function createIncident(

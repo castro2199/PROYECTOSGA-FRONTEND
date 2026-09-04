@@ -2,9 +2,9 @@ import type {
   AcademicPeriod,
   AcademicPeriodPayload,
   AcademicPeriodUpdatePayload,
-  PaginatedAcademicPeriodResponse,
 } from "../types/academicPeriod.types";
 import { authFetch } from "../../auth/services/authService";
+import { fetchAllPages } from "../utils/pagination";
 
 const ACADEMIC_PERIODS_URL = "/api/periodos/";
 
@@ -43,18 +43,7 @@ export async function getAcademicPeriods(
     ? `${ACADEMIC_PERIODS_URL}?${params.toString()}`
     : ACADEMIC_PERIODS_URL;
 
-  const response = await authFetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedAcademicPeriodResponse;
-  return data.results ?? [];
+  return fetchAllPages<AcademicPeriod>(url, token, readError);
 }
 
 export async function createAcademicPeriod(

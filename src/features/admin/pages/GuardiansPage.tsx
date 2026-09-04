@@ -1,5 +1,7 @@
 import type { ChangeEvent } from "react";
 import { useRef, useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { AssignStudentModal } from "../components/AssignStudentModal";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { GuardianModal } from "../components/GuardianModal";
@@ -69,6 +71,7 @@ export function GuardiansPage({ token }: GuardiansPageProps) {
     isLoading: isLoadingStudents,
     students,
   } = useStudents(token);
+  const pagination = useClientPagination(guardians);
 
   const guardianLinkCount = links.reduce<Record<number, number>>(
     (summary, link) => {
@@ -339,7 +342,7 @@ export function GuardiansPage({ token }: GuardiansPageProps) {
                   </td>
                 </tr>
               ) : (
-                guardians.map((guardian) => (
+                pagination.pageItems.map((guardian) => (
                   <tr className="hover:bg-gray-50" key={guardian.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {guardian.full_name}
@@ -408,6 +411,15 @@ export function GuardiansPage({ token }: GuardiansPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          currentPage={pagination.currentPage}
+          isLoading={isLoading}
+          itemLabel="apoderados"
+          onPageChange={pagination.setCurrentPage}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+        />
       </section>
 
       {isModalOpen && (

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { AcademicCourseModal } from "../components/AcademicCourseModal";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { useAcademicCourses } from "../hooks/useAcademicCourses";
@@ -13,6 +15,7 @@ import type {
 } from "../types/academicCatalog.types";
 
 type AcademicCoursesPageProps = {
+  onOpenEvaluation: () => void;
   token: string;
 };
 
@@ -32,7 +35,10 @@ function getStatusActionLabel(status: BasicAcademicStatus) {
   return `cambiar el estado a ${label}`;
 }
 
-export function AcademicCoursesPage({ token }: AcademicCoursesPageProps) {
+export function AcademicCoursesPage({
+  onOpenEvaluation,
+  token,
+}: AcademicCoursesPageProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<AcademicCourse | null>(
     null,
@@ -56,6 +62,7 @@ export function AcademicCoursesPage({ token }: AcademicCoursesPageProps) {
   } = useAcademicCourses(token, {
     estado: statusFilter,
   });
+  const pagination = useClientPagination(academicCourses);
 
   const handleSubmit = async (payload: AcademicCoursePayload) => {
     setModalError(null);
@@ -138,6 +145,13 @@ export function AcademicCoursesPage({ token }: AcademicCoursesPageProps) {
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
+            className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-100"
+            onClick={onOpenEvaluation}
+            type="button"
+          >
+            Competencias y criterios
+          </button>
+          <button
             className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
             disabled={isLoading || isSaving}
             onClick={() => void reload()}
@@ -215,7 +229,7 @@ export function AcademicCoursesPage({ token }: AcademicCoursesPageProps) {
                   </td>
                 </tr>
               ) : (
-                academicCourses.map((course) => (
+                pagination.pageItems.map((course) => (
                   <tr className="hover:bg-gray-50" key={course.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {course.nombre}
@@ -271,6 +285,7 @@ export function AcademicCoursesPage({ token }: AcademicCoursesPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={pagination.currentPage} isLoading={isLoading} itemLabel="cursos" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
       </section>
 
       {isModalOpen && (

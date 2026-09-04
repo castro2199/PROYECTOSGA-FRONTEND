@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { IncidentModal } from "../components/IncidentModal";
 import { useEnrollments } from "../hooks/useEnrollments";
@@ -16,6 +18,7 @@ import {
 } from "../types/incident.types";
 
 type IncidentsPageProps = {
+  onOpenNotifications?: () => void;
   token: string;
 };
 
@@ -49,7 +52,10 @@ function formatDateTime(value: string | null) {
   }).format(date);
 }
 
-export function IncidentsPage({ token }: IncidentsPageProps) {
+export function IncidentsPage({
+  onOpenNotifications,
+  token,
+}: IncidentsPageProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
@@ -83,6 +89,7 @@ export function IncidentsPage({ token }: IncidentsPageProps) {
         : incidents,
     [incidents, statusFilter],
   );
+  const pagination = useClientPagination(filteredIncidents);
   const isBusy = isLoading || isSaving || isLoadingEnrollments;
   const activeEnrollments = enrollments.filter(
     (enrollment) => enrollment.estado === "ACTIVA",
@@ -171,6 +178,16 @@ export function IncidentsPage({ token }: IncidentsPageProps) {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
+          {onOpenNotifications && (
+            <button
+              className="rounded-lg border border-brand-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={isBusy}
+              onClick={onOpenNotifications}
+              type="button"
+            >
+              Notificaciones
+            </button>
+          )}
           <button
             className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
             disabled={isBusy}
@@ -261,7 +278,7 @@ export function IncidentsPage({ token }: IncidentsPageProps) {
                   </td>
                 </tr>
               ) : (
-                filteredIncidents.map((incident) => (
+                pagination.pageItems.map((incident) => (
                   <tr className="hover:bg-gray-50" key={incident.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {incident.estudiante_codigo}
@@ -335,6 +352,7 @@ export function IncidentsPage({ token }: IncidentsPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={pagination.currentPage} isLoading={isBusy} itemLabel="incidencias" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
       </section>
 
       {isModalOpen && (

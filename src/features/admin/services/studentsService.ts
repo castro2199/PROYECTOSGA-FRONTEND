@@ -1,11 +1,11 @@
 import { authFetch } from "../../auth/services/authService";
 import type {
-  PaginatedStudentResponse,
   Student,
   StudentPayload,
   StudentUpdatePayload,
 } from "../types/student.types";
 import { formatApiObject } from "../utils/apiMessages";
+import { fetchAllPages } from "../utils/pagination";
 
 const STUDENTS_URL = "/api/estudiantes/";
 const STUDENTS_BULK_UPLOAD_URL = "/api/estudiantes/carga-masiva/";
@@ -24,18 +24,7 @@ async function readError(response: Response) {
 }
 
 export async function getStudents(token: string): Promise<Student[]> {
-  const response = await authFetch(STUDENTS_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedStudentResponse;
-  return data.results ?? [];
+  return fetchAllPages<Student>(STUDENTS_URL, token, readError);
 }
 
 export async function createStudent(

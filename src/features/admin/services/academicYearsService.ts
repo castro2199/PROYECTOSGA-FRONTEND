@@ -2,9 +2,9 @@ import type {
   AcademicYear,
   AcademicYearPayload,
   AcademicYearUpdatePayload,
-  PaginatedAcademicYearResponse,
 } from "../types/academicYear.types";
 import { authFetch } from "../../auth/services/authService";
+import { fetchAllPages } from "../utils/pagination";
 
 const ACADEMIC_YEARS_URL = "/api/anios-academicos/";
 
@@ -43,18 +43,7 @@ export async function getAcademicYears(
     ? `${ACADEMIC_YEARS_URL}?${params.toString()}`
     : ACADEMIC_YEARS_URL;
 
-  const response = await authFetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedAcademicYearResponse;
-  return data.results ?? [];
+  return fetchAllPages<AcademicYear>(url, token, readError);
 }
 
 export async function createAcademicYear(

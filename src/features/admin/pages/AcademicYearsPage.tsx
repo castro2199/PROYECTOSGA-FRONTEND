@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { AcademicYearModal } from "../components/AcademicYearModal";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { useAcademicYears } from "../hooks/useAcademicYears";
@@ -61,6 +63,7 @@ export function AcademicYearsPage({ token }: AcademicYearsPageProps) {
   } = useAcademicYears(token, {
     estado: statusFilter,
   });
+  const pagination = useClientPagination(academicYears);
 
   const handleSubmit = async (payload: AcademicYearPayload) => {
     setModalError(null);
@@ -219,7 +222,7 @@ export function AcademicYearsPage({ token }: AcademicYearsPageProps) {
                   </td>
                 </tr>
               ) : (
-                academicYears.map((academicYear) => (
+                pagination.pageItems.map((academicYear) => (
                   <tr className="hover:bg-gray-50" key={academicYear.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {academicYear.anio}
@@ -272,6 +275,7 @@ export function AcademicYearsPage({ token }: AcademicYearsPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={pagination.currentPage} isLoading={isLoading} itemLabel="anios academicos" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
       </section>
 
       {isModalOpen && (

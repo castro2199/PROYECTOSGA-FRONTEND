@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { AcademicGradeModal } from "../components/AcademicGradeModal";
 import { AcademicSectionModal } from "../components/AcademicSectionModal";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
@@ -96,6 +98,8 @@ export function AcademicGradesSectionsPage({
 
   const isSaving = isSavingGrade || isSavingSection;
   const isBusy = isLoadingGrades || isLoadingSections || isSaving;
+  const gradesPagination = useClientPagination(academicGrades);
+  const sectionsPagination = useClientPagination(academicSections);
 
   const handleGradeSubmit = async (payload: AcademicGradePayload) => {
     setGradeModalError(null);
@@ -312,7 +316,7 @@ export function AcademicGradesSectionsPage({
                   </td>
                 </tr>
               ) : (
-                academicGrades.map((grade) => (
+                gradesPagination.pageItems.map((grade) => (
                   <tr className="hover:bg-gray-50" key={grade.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {grade.nombre}
@@ -366,6 +370,7 @@ export function AcademicGradesSectionsPage({
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={gradesPagination.currentPage} isLoading={isLoadingGrades} itemLabel="grados" onPageChange={gradesPagination.setCurrentPage} pageSize={gradesPagination.pageSize} totalItems={gradesPagination.totalItems} totalPages={gradesPagination.totalPages} />
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs">
@@ -436,7 +441,7 @@ export function AcademicGradesSectionsPage({
                   </td>
                 </tr>
               ) : (
-                academicSections.map((section) => (
+                sectionsPagination.pageItems.map((section) => (
                   <tr className="hover:bg-gray-50" key={section.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {section.nombre}
@@ -493,6 +498,7 @@ export function AcademicGradesSectionsPage({
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={sectionsPagination.currentPage} isLoading={isLoadingSections} itemLabel="secciones" onPageChange={sectionsPagination.setCurrentPage} pageSize={sectionsPagination.pageSize} totalItems={sectionsPagination.totalItems} totalPages={sectionsPagination.totalPages} />
       </section>
 
       {isGradeModalOpen && (

@@ -1,5 +1,7 @@
 import type { ChangeEvent } from "react";
 import { useRef, useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { StudentModal } from "../components/StudentModal";
 import { useStudents } from "../hooks/useStudents";
@@ -46,6 +48,7 @@ export function StudentsPage({ token }: StudentsPageProps) {
     reload,
     students,
   } = useStudents(token);
+  const pagination = useClientPagination(students);
 
   const handleSubmit = async (payload: StudentPayload) => {
     setModalError(null);
@@ -279,7 +282,7 @@ export function StudentsPage({ token }: StudentsPageProps) {
                   </td>
                 </tr>
               ) : (
-                students.map((student) => (
+                pagination.pageItems.map((student) => (
                   <tr className="hover:bg-gray-50" key={student.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {student.codigo_estudiante}
@@ -343,6 +346,15 @@ export function StudentsPage({ token }: StudentsPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          currentPage={pagination.currentPage}
+          isLoading={isLoading}
+          itemLabel="estudiantes"
+          onPageChange={pagination.setCurrentPage}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+        />
       </section>
 
       {isModalOpen && (

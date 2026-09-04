@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import {
   getTeacherAttendanceRecords,
   getTeacherCourseStudents,
@@ -206,6 +208,7 @@ export function TeacherAttendancePage({ course }: Props) {
 
   const weekEnd = weekDays[4];
   const weekLabel = `${weekStart.toLocaleDateString("es-PE", { day: "2-digit", month: "short" })} - ${weekEnd.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}`;
+  const pagination = useClientPagination(students);
 
   return (
     <div className="space-y-4">
@@ -246,10 +249,11 @@ export function TeacherAttendancePage({ course }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {students.map((student) => <tr key={student.id}><td className="px-4 py-3"><p className="font-semibold text-gray-900">{student.estudiante_nombre}</p><p className="mt-1 text-xs text-gray-500">{student.codigo_estudiante}</p></td>{weekDays.map((day) => { const date = dateKey(day); const key = cellKey(student.id, date); const status = statuses[key] ?? ""; return <td className="px-2 py-3 align-top" key={date}><div className="min-h-16"><select aria-label={`Asistencia de ${student.estudiante_nombre} el ${date}`} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold outline-none focus:border-brand-500" onChange={(event) => updateStatus(student.id, date, event.target.value as AttendanceStatus | "")} value={status}><option value="">Sin marcar</option>{STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{status === "JUSTIFICADA" && <input aria-label={`Justificacion de ${student.estudiante_nombre}`} className="mt-2 h-9 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-brand-500" maxLength={500} onChange={(event) => { setNotes((current) => ({ ...current, [key]: event.target.value })); setDirtyDates((current) => new Set(current).add(date)); }} placeholder="Motivo" value={notes[key] ?? ""} />}</div></td>; })}</tr>)}
+                {pagination.pageItems.map((student) => <tr key={student.id}><td className="px-4 py-3"><p className="font-semibold text-gray-900">{student.estudiante_nombre}</p><p className="mt-1 text-xs text-gray-500">{student.codigo_estudiante}</p></td>{weekDays.map((day) => { const date = dateKey(day); const key = cellKey(student.id, date); const status = statuses[key] ?? ""; return <td className="px-2 py-3 align-top" key={date}><div className="min-h-16"><select aria-label={`Asistencia de ${student.estudiante_nombre} el ${date}`} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold outline-none focus:border-brand-500" onChange={(event) => updateStatus(student.id, date, event.target.value as AttendanceStatus | "")} value={status}><option value="">Sin marcar</option>{STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{status === "JUSTIFICADA" && <input aria-label={`Justificacion de ${student.estudiante_nombre}`} className="mt-2 h-9 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-brand-500" maxLength={500} onChange={(event) => { setNotes((current) => ({ ...current, [key]: event.target.value })); setDirtyDates((current) => new Set(current).add(date)); }} placeholder="Motivo" value={notes[key] ?? ""} />}</div></td>; })}</tr>)}
               </tbody>
             </table>
           </div>
+          <PaginationControls currentPage={pagination.currentPage} isLoading={isSaving} itemLabel="estudiantes" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
         </section>
       )}
     </div>

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import {
   getTeacherCourseCriteria,
   getTeacherCoursePeriods,
@@ -151,6 +153,7 @@ export function TeacherGradesPage({ course }: Props) {
   };
 
   const inputClass = "h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-50 disabled:bg-gray-50";
+  const pagination = useClientPagination(students);
 
   return (
     <div className="space-y-4">
@@ -189,9 +192,10 @@ export function TeacherGradesPage({ course }: Props) {
           <div className="overflow-x-auto">
             <table className="min-w-[760px] table-fixed text-left text-sm">
               <thead className="bg-gray-50"><tr><th className="w-72 px-5 py-3 font-semibold text-gray-600">Estudiante</th><th className="w-52 px-5 py-3 font-semibold text-gray-600">Calificacion</th><th className="px-5 py-3 font-semibold text-gray-600">Observacion</th></tr></thead>
-              <tbody className="divide-y divide-gray-100">{students.map((student) => <tr key={student.id}><td className="px-5 py-4"><p className="font-semibold text-gray-900">{student.estudiante_nombre}</p><p className="mt-1 text-xs text-gray-500">{student.codigo_estudiante}</p></td><td className="px-5 py-4"><select aria-label={`Calificacion de ${student.estudiante_nombre}`} className={inputClass} disabled={!criterionId || !periodId || isSaving} onChange={(event) => { setGrades((current) => ({ ...current, [student.id]: event.target.value as GradeValue | "" })); setIsDirty(true); setSuccess(null); }} value={grades[student.id] ?? ""}><option value="">Seleccionar</option><option value="AD">AD - Logro destacado</option><option value="A">A - Logro esperado</option><option value="B">B - En proceso</option><option value="C">C - En inicio</option></select></td><td className="px-5 py-4"><input aria-label={`Observacion de ${student.estudiante_nombre}`} className={inputClass} disabled={!criterionId || !periodId || isSaving} maxLength={500} onChange={(event) => { setNotes((current) => ({ ...current, [student.id]: event.target.value })); setIsDirty(true); setSuccess(null); }} placeholder="Observacion opcional" value={notes[student.id] ?? ""} /></td></tr>)}</tbody>
+              <tbody className="divide-y divide-gray-100">{pagination.pageItems.map((student) => <tr key={student.id}><td className="px-5 py-4"><p className="font-semibold text-gray-900">{student.estudiante_nombre}</p><p className="mt-1 text-xs text-gray-500">{student.codigo_estudiante}</p></td><td className="px-5 py-4"><select aria-label={`Calificacion de ${student.estudiante_nombre}`} className={inputClass} disabled={!criterionId || !periodId || isSaving} onChange={(event) => { setGrades((current) => ({ ...current, [student.id]: event.target.value as GradeValue | "" })); setIsDirty(true); setSuccess(null); }} value={grades[student.id] ?? ""}><option value="">Seleccionar</option><option value="AD">AD - Logro destacado</option><option value="A">A - Logro esperado</option><option value="B">B - En proceso</option><option value="C">C - En inicio</option></select></td><td className="px-5 py-4"><input aria-label={`Observacion de ${student.estudiante_nombre}`} className={inputClass} disabled={!criterionId || !periodId || isSaving} maxLength={500} onChange={(event) => { setNotes((current) => ({ ...current, [student.id]: event.target.value })); setIsDirty(true); setSuccess(null); }} placeholder="Observacion opcional" value={notes[student.id] ?? ""} /></td></tr>)}</tbody>
             </table>
           </div>
+          <PaginationControls currentPage={pagination.currentPage} isLoading={isSaving} itemLabel="estudiantes" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
         </section>
       )}
     </div>

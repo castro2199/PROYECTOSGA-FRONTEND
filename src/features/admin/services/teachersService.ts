@@ -1,10 +1,10 @@
 import { authFetch } from "../../auth/services/authService";
 import type {
-  PaginatedTeacherResponse,
   Teacher,
   TeacherPayload,
   TeacherUpdatePayload,
 } from "../types/academicCatalog.types";
+import { fetchAllPages } from "../utils/pagination";
 
 const TEACHERS_URL = "/api/docentes/";
 
@@ -26,18 +26,7 @@ async function readError(response: Response) {
 }
 
 export async function getTeachers(token: string): Promise<Teacher[]> {
-  const response = await authFetch(TEACHERS_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedTeacherResponse;
-  return data.results ?? [];
+  return fetchAllPages<Teacher>(TEACHERS_URL, token, readError);
 }
 
 export async function createTeacher(

@@ -1,11 +1,11 @@
 import { authFetch } from "../../auth/services/authService";
 import type {
-  PaginatedUserAccountResponse,
   UserAccount,
   UserAccountPayload,
   UserAccountUpdatePayload,
 } from "../types/userAccount.types";
 import { formatApiObject } from "../utils/apiMessages";
+import { fetchAllPages } from "../utils/pagination";
 
 const USER_ACCOUNTS_URL = "/api/usuarios/";
 
@@ -22,18 +22,7 @@ async function readError(response: Response) {
 }
 
 export async function getUserAccounts(token: string): Promise<UserAccount[]> {
-  const response = await authFetch(USER_ACCOUNTS_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedUserAccountResponse;
-  return data.results ?? [];
+  return fetchAllPages<UserAccount>(USER_ACCOUNTS_URL, token, readError);
 }
 
 export async function createUserAccount(

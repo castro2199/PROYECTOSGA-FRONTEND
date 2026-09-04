@@ -3,9 +3,9 @@ import type {
   Enrollment,
   EnrollmentPayload,
   EnrollmentUpdatePayload,
-  PaginatedEnrollmentResponse,
 } from "../types/enrollment.types";
 import { formatApiObject } from "../utils/apiMessages";
+import { fetchAllPages } from "../utils/pagination";
 
 const ENROLLMENTS_URL = "/api/matriculas/";
 
@@ -39,18 +39,7 @@ export async function getEnrollments(
     ? `${ENROLLMENTS_URL}?${params.toString()}`
     : ENROLLMENTS_URL;
 
-  const response = await authFetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedEnrollmentResponse;
-  return data.results ?? [];
+  return fetchAllPages<Enrollment>(url, token, readError);
 }
 
 export async function createEnrollment(

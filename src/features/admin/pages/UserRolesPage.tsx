@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { UserRoleModal } from "../components/UserRoleModal";
 import { useUserAccounts } from "../hooks/useUserAccounts";
@@ -47,6 +49,7 @@ export function UserRolesPage({ token }: UserRolesPageProps) {
     reload,
     users,
   } = useUserAccounts(token);
+  const pagination = useClientPagination(users);
 
   const handleSubmit = async (payload: UserAccountPayload) => {
     setModalError(null);
@@ -189,7 +192,7 @@ export function UserRolesPage({ token }: UserRolesPageProps) {
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
+                pagination.pageItems.map((user) => (
                   <tr className="hover:bg-gray-50" key={user.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {user.username}
@@ -266,6 +269,15 @@ export function UserRolesPage({ token }: UserRolesPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          currentPage={pagination.currentPage}
+          isLoading={isLoading}
+          itemLabel="usuarios"
+          onPageChange={pagination.setCurrentPage}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+        />
       </section>
 
       {isModalOpen && (

@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { AIRecommendationModal } from "../components/AIRecommendationModal";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { GenerateAIRecommendationModal } from "../components/GenerateAIRecommendationModal";
@@ -133,6 +135,7 @@ export function AIRecommendationsPage({ token }: AIRecommendationsPageProps) {
       return matchesReview && matchesActive;
     });
   }, [activeFilter, recommendations, reviewFilter]);
+  const pagination = useClientPagination(filteredRecommendations);
   const isCatalogLoading =
     isLoadingPeriods ||
     isLoadingAssignments ||
@@ -406,7 +409,7 @@ export function AIRecommendationsPage({ token }: AIRecommendationsPageProps) {
                   </td>
                 </tr>
               ) : (
-                filteredRecommendations.map((recommendation) => (
+                pagination.pageItems.map((recommendation) => (
                   <tr className="hover:bg-gray-50" key={recommendation.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {recommendation.estudiante_codigo}
@@ -506,6 +509,7 @@ export function AIRecommendationsPage({ token }: AIRecommendationsPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={pagination.currentPage} isLoading={isLoading} itemLabel="recomendaciones" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
       </section>
 
       {isModalOpen && (

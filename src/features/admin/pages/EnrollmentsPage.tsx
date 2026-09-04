@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { EnrollmentModal } from "../components/EnrollmentModal";
 import { useAcademicSections } from "../hooks/useAcademicSections";
@@ -78,6 +80,7 @@ export function EnrollmentsPage({ token }: EnrollmentsPageProps) {
     reload: reloadStudents,
     students,
   } = useStudents(token);
+  const pagination = useClientPagination(enrollments);
 
   const isCatalogLoading =
     isLoadingAcademicYears || isLoadingAcademicSections || isLoadingStudents;
@@ -263,7 +266,7 @@ export function EnrollmentsPage({ token }: EnrollmentsPageProps) {
                   </td>
                 </tr>
               ) : (
-                enrollments.map((enrollment) => (
+                pagination.pageItems.map((enrollment) => (
                   <tr className="hover:bg-gray-50" key={enrollment.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {enrollment.estudiante_codigo}
@@ -328,6 +331,7 @@ export function EnrollmentsPage({ token }: EnrollmentsPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={pagination.currentPage} isLoading={isBusy} itemLabel="matriculas" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
       </section>
 
       {isModalOpen && (

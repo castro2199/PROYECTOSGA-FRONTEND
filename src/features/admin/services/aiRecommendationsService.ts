@@ -4,9 +4,9 @@ import type {
   AIRecommendationPayload,
   AIRecommendationUpdatePayload,
   GenerateAIRecommendationPayload,
-  PaginatedAIRecommendationResponse,
 } from "../types/aiRecommendation.types";
 import { formatApiObject } from "../utils/apiMessages";
+import { fetchAllPages } from "../utils/pagination";
 
 const AI_RECOMMENDATIONS_URL = "/api/recomendaciones-ia/";
 const GENERATE_AI_RECOMMENDATION_URL = "/api/docente/recomendaciones-ia/generar/";
@@ -26,18 +26,7 @@ async function readError(response: Response) {
 export async function getAIRecommendations(
   token: string,
 ): Promise<AIRecommendation[]> {
-  const response = await authFetch(AI_RECOMMENDATIONS_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedAIRecommendationResponse;
-  return data.results ?? [];
+  return fetchAllPages<AIRecommendation>(AI_RECOMMENDATIONS_URL, token, readError);
 }
 
 export async function createAIRecommendation(

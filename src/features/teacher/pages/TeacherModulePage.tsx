@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { TeacherRecordModal } from "../components/TeacherRecordModal";
 import { TeacherRecommendationsPage } from "./TeacherRecommendationsPage";
 import {
@@ -438,6 +440,7 @@ export function TeacherModulePage({
   }, [courseStudentIds, data, module, selectedCourseId]);
   const metrics = useMemo(() => collectMetrics(data), [data]);
   const columns = useMemo(() => getColumns(module, items), [items, module]);
+  const pagination = useClientPagination(items, module === "courses" ? 6 : 10);
 
   if (module === "recommendations") {
     return (
@@ -517,9 +520,19 @@ export function TeacherModulePage({
       )}
 
       {!isLoading && !error && items.length > 0 && (
-        module === "courses" ? (
-          <CourseList items={items} onOpenCourse={onOpenCourse} />
-        ) : <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs">
+        module === "courses" ? <>
+          <CourseList items={pagination.pageItems} onOpenCourse={onOpenCourse} />
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs">
+            <PaginationControls
+              currentPage={pagination.currentPage}
+              itemLabel="cursos"
+              onPageChange={pagination.setCurrentPage}
+              pageSize={pagination.pageSize}
+              totalItems={pagination.totalItems}
+              totalPages={pagination.totalPages}
+            />
+          </section>
+        </> : <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs">
           <div className="border-b border-gray-100 px-6 py-4">
             <h3 className="text-lg font-bold text-gray-900">
               {items.length} registros
@@ -538,7 +551,7 @@ export function TeacherModulePage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {items.map((item, index) => (
+                {pagination.pageItems.map((item, index) => (
                   <tr className="align-top" key={String(item.id ?? index)}>
                     {columns.map((column) => (
                       <td className="max-w-sm px-6 py-4" key={column}>
@@ -554,7 +567,7 @@ export function TeacherModulePage({
           </div>
 
           <div className="divide-y divide-gray-100 lg:hidden">
-            {items.map((item, index) => (
+            {pagination.pageItems.map((item, index) => (
               <article className="p-5" key={String(item.id ?? index)}>
                 <h3 className="font-bold text-gray-900">
                   {formatValue(getPrimaryText(item, module))}
@@ -574,6 +587,13 @@ export function TeacherModulePage({
               </article>
             ))}
           </div>
+          <PaginationControls
+            currentPage={pagination.currentPage}
+            onPageChange={pagination.setCurrentPage}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
+          />
         </section>
       )}
 

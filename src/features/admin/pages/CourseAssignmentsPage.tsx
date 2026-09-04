@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { CourseAssignmentModal } from "../components/CourseAssignmentModal";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { useAcademicCourses } from "../hooks/useAcademicCourses";
@@ -90,6 +92,7 @@ export function CourseAssignmentsPage({ token }: CourseAssignmentsPageProps) {
     reload: reloadTeachers,
     teachers,
   } = useTeachers(token);
+  const pagination = useClientPagination(courseAssignments);
 
   const isCatalogLoading =
     isLoadingAcademicYears ||
@@ -290,7 +293,7 @@ export function CourseAssignmentsPage({ token }: CourseAssignmentsPageProps) {
                   </td>
                 </tr>
               ) : (
-                courseAssignments.map((assignment) => (
+                pagination.pageItems.map((assignment) => (
                   <tr className="hover:bg-gray-50" key={assignment.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {assignment.curso_label}
@@ -350,6 +353,7 @@ export function CourseAssignmentsPage({ token }: CourseAssignmentsPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={pagination.currentPage} isLoading={isBusy} itemLabel="asignaciones" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
       </section>
 
       {isModalOpen && (

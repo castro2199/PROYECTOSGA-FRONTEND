@@ -3,9 +3,9 @@ import type {
   Guardian,
   GuardianPayload,
   GuardianUpdatePayload,
-  PaginatedGuardianResponse,
 } from "../types/guardian.types";
 import { formatApiObject } from "../utils/apiMessages";
+import { fetchAllPages } from "../utils/pagination";
 
 const GUARDIANS_URL = "/api/apoderados/";
 const GUARDIANS_BULK_UPLOAD_URL = "/api/apoderados/carga-masiva/";
@@ -24,18 +24,7 @@ async function readError(response: Response) {
 }
 
 export async function getGuardians(token: string): Promise<Guardian[]> {
-  const response = await authFetch(GUARDIANS_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedGuardianResponse;
-  return data.results ?? [];
+  return fetchAllPages<Guardian>(GUARDIANS_URL, token, readError);
 }
 
 export async function createGuardian(

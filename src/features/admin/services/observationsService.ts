@@ -3,9 +3,9 @@ import type {
   Observation,
   ObservationPayload,
   ObservationUpdatePayload,
-  PaginatedObservationResponse,
 } from "../types/observation.types";
 import { formatApiObject } from "../utils/apiMessages";
+import { fetchAllPages } from "../utils/pagination";
 
 const OBSERVATIONS_URL = "/api/observaciones/";
 
@@ -22,18 +22,7 @@ async function readError(response: Response) {
 }
 
 export async function getObservations(token: string): Promise<Observation[]> {
-  const response = await authFetch(OBSERVATIONS_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedObservationResponse;
-  return data.results ?? [];
+  return fetchAllPages<Observation>(OBSERVATIONS_URL, token, readError);
 }
 
 export async function createObservation(

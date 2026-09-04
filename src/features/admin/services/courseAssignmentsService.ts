@@ -3,8 +3,8 @@ import type {
   CourseAssignment,
   CourseAssignmentPayload,
   CourseAssignmentUpdatePayload,
-  PaginatedCourseAssignmentResponse,
 } from "../types/academicCatalog.types";
+import { fetchAllPages } from "../utils/pagination";
 
 const COURSE_ASSIGNMENTS_URL = "/api/asignaciones-cursos/";
 
@@ -43,18 +43,7 @@ export async function getCourseAssignments(
     ? `${COURSE_ASSIGNMENTS_URL}?${params.toString()}`
     : COURSE_ASSIGNMENTS_URL;
 
-  const response = await authFetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedCourseAssignmentResponse;
-  return data.results ?? [];
+  return fetchAllPages<CourseAssignment>(url, token, readError);
 }
 
 export async function createCourseAssignment(

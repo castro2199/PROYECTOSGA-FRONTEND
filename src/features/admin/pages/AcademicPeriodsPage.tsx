@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { AcademicPeriodModal } from "../components/AcademicPeriodModal";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { useAcademicPeriods } from "../hooks/useAcademicPeriods";
@@ -69,6 +71,7 @@ export function AcademicPeriodsPage({ token }: AcademicPeriodsPageProps) {
     error: academicYearsError,
     isLoading: isLoadingAcademicYears,
   } = useAcademicYears(token);
+  const pagination = useClientPagination(academicPeriods);
 
   const isBusy = isLoading || isSaving || isLoadingAcademicYears;
 
@@ -235,7 +238,7 @@ export function AcademicPeriodsPage({ token }: AcademicPeriodsPageProps) {
                   </td>
                 </tr>
               ) : (
-                academicPeriods.map((period) => (
+                pagination.pageItems.map((period) => (
                   <tr className="hover:bg-gray-50" key={period.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {period.nombre}
@@ -295,6 +298,7 @@ export function AcademicPeriodsPage({ token }: AcademicPeriodsPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={pagination.currentPage} isLoading={isBusy} itemLabel="periodos" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
       </section>
 
       {isModalOpen && (

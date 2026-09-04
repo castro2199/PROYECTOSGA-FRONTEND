@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { ObservationModal } from "../components/ObservationModal";
 import { useCourseAssignments } from "../hooks/useCourseAssignments";
@@ -82,6 +84,7 @@ export function ObservationsPage({ token }: ObservationsPageProps) {
     const isActive = statusFilter === "true";
     return observations.filter((observation) => observation.activo === isActive);
   }, [observations, statusFilter]);
+  const pagination = useClientPagination(filteredObservations);
   const isCatalogLoading =
     isLoadingEnrollments || isLoadingAssignments || isLoadingTeachers;
   const isBusy = isLoading || isSaving || isCatalogLoading;
@@ -259,7 +262,7 @@ export function ObservationsPage({ token }: ObservationsPageProps) {
                   </td>
                 </tr>
               ) : (
-                filteredObservations.map((observation) => (
+                pagination.pageItems.map((observation) => (
                   <tr className="hover:bg-gray-50" key={observation.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {observation.estudiante_codigo}
@@ -339,6 +342,7 @@ export function ObservationsPage({ token }: ObservationsPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls currentPage={pagination.currentPage} isLoading={isBusy} itemLabel="observaciones" onPageChange={pagination.setCurrentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} />
       </section>
 
       {isModalOpen && (

@@ -2,9 +2,9 @@ import { authFetch } from "../../auth/services/authService";
 import type {
   GuardianStudentLink,
   GuardianStudentLinkPayload,
-  PaginatedGuardianStudentLinkResponse,
 } from "../types/guardianStudentLink.types";
 import { formatApiObject } from "../utils/apiMessages";
+import { fetchAllPages } from "../utils/pagination";
 
 const GUARDIAN_STUDENT_LINKS_URL = "/api/vinculos-apoderados/";
 
@@ -23,18 +23,11 @@ async function readError(response: Response) {
 export async function getGuardianStudentLinks(
   token: string,
 ): Promise<GuardianStudentLink[]> {
-  const response = await authFetch(GUARDIAN_STUDENT_LINKS_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedGuardianStudentLinkResponse;
-  return data.results ?? [];
+  return fetchAllPages<GuardianStudentLink>(
+    GUARDIAN_STUDENT_LINKS_URL,
+    token,
+    readError,
+  );
 }
 
 export async function createGuardianStudentLink(

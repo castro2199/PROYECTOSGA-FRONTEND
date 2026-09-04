@@ -2,9 +2,9 @@ import type {
   AcademicGrade,
   AcademicGradePayload,
   AcademicGradeUpdatePayload,
-  PaginatedAcademicGradeResponse,
 } from "../types/academicCatalog.types";
 import { authFetch } from "../../auth/services/authService";
+import { fetchAllPages } from "../utils/pagination";
 
 const ACADEMIC_GRADES_URL = "/api/grados/";
 
@@ -43,18 +43,7 @@ export async function getAcademicGrades(
     ? `${ACADEMIC_GRADES_URL}?${params.toString()}`
     : ACADEMIC_GRADES_URL;
 
-  const response = await authFetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const data = (await response.json()) as PaginatedAcademicGradeResponse;
-  return data.results ?? [];
+  return fetchAllPages<AcademicGrade>(url, token, readError);
 }
 
 export async function createAcademicGrade(

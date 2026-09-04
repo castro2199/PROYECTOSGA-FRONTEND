@@ -7,6 +7,7 @@ import { AcademicYearsPage } from "../features/admin/pages/AcademicYearsPage";
 import { AcademicPeriodsPage } from "../features/admin/pages/AcademicPeriodsPage";
 import { AcademicGradesSectionsPage } from "../features/admin/pages/AcademicGradesSectionsPage";
 import { AcademicCoursesPage } from "../features/admin/pages/AcademicCoursesPage";
+import { AcademicEvaluationPage } from "../features/admin/pages/AcademicEvaluationPage";
 import { CourseAssignmentsPage } from "../features/admin/pages/CourseAssignmentsPage";
 import { StudentsPage } from "../features/admin/pages/StudentsPage";
 import { TeachersPage } from "../features/admin/pages/TeachersPage";
@@ -14,6 +15,7 @@ import { GuardiansPage } from "../features/admin/pages/GuardiansPage";
 import { UserRolesPage } from "../features/admin/pages/UserRolesPage";
 import { EnrollmentsPage } from "../features/admin/pages/EnrollmentsPage";
 import { IncidentsPage } from "../features/admin/pages/IncidentsPage";
+import { AdminNotificationsPage } from "../features/admin/pages/AdminNotificationsPage";
 import { ObservationsPage } from "../features/admin/pages/ObservationsPage";
 import { AIRecommendationsPage } from "../features/admin/pages/AIRecommendationsPage";
 import { ReportsPage } from "../features/admin/pages/ReportsPage";
@@ -510,7 +512,18 @@ export function AdminLayout({ currentPath, onNavigate }: AdminLayoutProps) {
     }
 
     if (path === "/admin/gestion-academica/cursos") {
-      return <AcademicCoursesPage token={accessToken} />;
+      return (
+        <AcademicCoursesPage
+          onOpenEvaluation={() =>
+            handleNavigate("/admin/gestion-academica/evaluacion")
+          }
+          token={accessToken}
+        />
+      );
+    }
+
+    if (path === "/admin/gestion-academica/evaluacion") {
+      return <AcademicEvaluationPage onNavigate={handleNavigate} />;
     }
 
     if (path === "/admin/gestion-academica/asignaciones") {
@@ -538,7 +551,18 @@ export function AdminLayout({ currentPath, onNavigate }: AdminLayoutProps) {
     }
 
     if (path === "/admin/seguimiento/incidencias") {
-      return <IncidentsPage token={accessToken} />;
+      return (
+        <IncidentsPage
+          onOpenNotifications={() =>
+            handleNavigate("/admin/seguimiento/notificaciones")
+          }
+          token={accessToken}
+        />
+      );
+    }
+
+    if (path === "/admin/seguimiento/notificaciones") {
+      return <AdminNotificationsPage token={accessToken} />;
     }
 
     if (path === "/admin/seguimiento/observaciones") {

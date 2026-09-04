@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { ConfirmStatusModal } from "../components/ConfirmStatusModal";
 import { TeacherModal } from "../components/TeacherModal";
 import { useTeachers } from "../hooks/useTeachers";
@@ -35,6 +37,7 @@ export function TeachersPage({ token }: TeachersPageProps) {
     reload,
     teachers,
   } = useTeachers(token);
+  const pagination = useClientPagination(teachers);
 
   const handleSubmit = async (payload: TeacherPayload) => {
     setModalError(null);
@@ -174,7 +177,7 @@ export function TeachersPage({ token }: TeachersPageProps) {
                   </td>
                 </tr>
               ) : (
-                teachers.map((teacher) => (
+                pagination.pageItems.map((teacher) => (
                   <tr className="hover:bg-gray-50" key={teacher.id}>
                     <td className="px-6 py-4 font-semibold text-gray-900">
                       {teacher.full_name}
@@ -230,6 +233,15 @@ export function TeachersPage({ token }: TeachersPageProps) {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          currentPage={pagination.currentPage}
+          isLoading={isLoading}
+          itemLabel="docentes"
+          onPageChange={pagination.setCurrentPage}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+        />
       </section>
 
       {isModalOpen && (

@@ -8,9 +8,11 @@ import {
   type GuardianStudent,
 } from "../services/guardianService";
 import { GuardianModulePage } from "./GuardianModulePage";
+import { JustificationsPanel } from "../../justifications/components/JustificationsPanel";
 
 export type GuardianCourseSection =
   | "overview"
+  | "justifications"
   | Extract<GuardianModuleKey, "attendance" | "grades" | "tracking">;
 
 type Props = {
@@ -27,6 +29,7 @@ const SECTIONS: Array<{
 }> = [
   { key: "overview", label: "Resumen", shortLabel: "RS" },
   { key: "attendance", label: "Asistencia", shortLabel: "AS" },
+  { key: "justifications", label: "Justificaciones", shortLabel: "JU" },
   { key: "grades", label: "Calificaciones", shortLabel: "CA" },
   { key: "tracking", label: "Seguimiento", shortLabel: "SE" },
 ];
@@ -34,6 +37,7 @@ const SECTIONS: Array<{
 const PATHS: Record<GuardianCourseSection, string> = {
   attendance: "asistencia",
   grades: "calificaciones",
+  justifications: "justificaciones",
   overview: "resumen",
   tracking: "seguimiento",
 };
@@ -57,8 +61,8 @@ export function GuardianCourseWorkspacePage({
 
     Promise.all([
       getGuardianModuleData<unknown>("students"),
-      getGuardianModuleData<unknown>("attendance"),
-      getGuardianModuleData<unknown>("grades"),
+      getGuardianModuleData<unknown>("attendance", studentId),
+      getGuardianModuleData<unknown>("grades", studentId),
     ])
       .then(([studentResponse, attendanceResponse, gradeResponse]) => {
         if (ignore) return;
@@ -225,7 +229,15 @@ export function GuardianCourseWorkspacePage({
         </section>
       )}
 
-      {initialSection !== "overview" && (
+      {initialSection === "justifications" && (
+        <JustificationsPanel
+          assignmentId={courseId}
+          role="guardian"
+          studentId={studentId}
+        />
+      )}
+
+      {initialSection !== "overview" && initialSection !== "justifications" && (
         <GuardianModulePage
           embedded
           module={initialSection}

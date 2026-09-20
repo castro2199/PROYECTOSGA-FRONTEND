@@ -1,7 +1,11 @@
 import type { AuthUser } from "../../auth/types/auth.types";
+import { NotificationBell } from "../../notifications/components/NotificationBell";
+import type { SgaNotification } from "../../notifications/types/notification.types";
 
 type AdminHeaderProps = {
   onLogout: () => void;
+  onNotificationAction: (notification: SgaNotification) => void;
+  onNotifications: () => void;
   onToggleSidebar: () => void;
   primaryRole: string | null;
   user: AuthUser;
@@ -9,6 +13,8 @@ type AdminHeaderProps = {
 
 export function AdminHeader({
   onLogout,
+  onNotificationAction,
+  onNotifications,
   onToggleSidebar,
   primaryRole,
   user,
@@ -51,6 +57,10 @@ export function AdminHeader({
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationBell
+            onOpenNotification={onNotificationAction}
+            onViewAll={onNotifications}
+          />
           <div className="hidden text-right sm:block">
             <p className="text-sm font-semibold text-gray-900">{displayName}</p>
             <p className="text-xs text-gray-500">{roleLabel}</p>

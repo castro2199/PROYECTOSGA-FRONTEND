@@ -3,12 +3,14 @@ import { PaginationControls } from "../../../shared/components/PaginationControl
 import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { TeacherRecordModal } from "../components/TeacherRecordModal";
+import { TeacherCommunicationModal } from "../components/TeacherCommunicationModal";
 import {
   getTeacherCoursePeriods,
   getTeacherCourses,
   getTeacherCourseStudents,
   getTeacherRecommendation,
   getTeacherRecommendations,
+  publishTeacherRecommendation,
   reviewTeacherRecommendation,
   type RecommendationReviewStatus,
   type TeacherCourse,
@@ -94,10 +96,30 @@ function TextList({ items }: { items?: string[] }) {
   );
 }
 
+function PublishRecommendationModal({
+  isSaving,
+  onClose,
+  onPublished,
+  recommendation,
+}: {
+  isSaving: boolean;
+  onClose: () => void;
+  onPublished: (payload: { notificar_estudiante: boolean; notificar_apoderados: boolean; prioridad: "BAJA" | "MEDIA" | "ALTA" | "URGENTE"; mensaje_adicional: string }) => Promise<void>;
+  recommendation: TeacherRecommendation;
+}) {
+  const [notifyStudent, setNotifyStudent] = useState(true);
+  const [notifyGuardians, setNotifyGuardians] = useState(false);
+  const [priority, setPriority] = useState<"BAJA" | "MEDIA" | "ALTA" | "URGENTE">("ALTA");
+  const [message, setMessage] = useState("");
+  return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-950/50 px-4"><form className="w-full max-w-lg rounded-lg bg-white p-6 shadow-theme-xl" onSubmit={(event) => { event.preventDefault(); void onPublished({ notificar_estudiante: notifyStudent, notificar_apoderados: notifyGuardians, prioridad: priority, mensaje_adicional: message }); }}><h2 className="text-xl font-bold text-gray-900">Publicar recomendación</h2><p className="mt-2 text-sm leading-6 text-gray-600">{recommendation.estudiante_label} recibirá la recomendación publicada según los destinatarios seleccionados.</p><div className="mt-5 space-y-3"><label className="flex items-center gap-3 text-sm font-semibold text-gray-800"><input checked={notifyStudent} onChange={(event) => setNotifyStudent(event.target.checked)} type="checkbox" /> Notificar al estudiante</label><label className="flex items-center gap-3 text-sm font-semibold text-gray-800"><input checked={notifyGuardians} onChange={(event) => setNotifyGuardians(event.target.checked)} type="checkbox" /> Notificar a apoderados</label><label className="block text-sm font-semibold text-gray-700">Prioridad<select className="mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 font-normal" onChange={(event) => setPriority(event.target.value as typeof priority)} value={priority}><option value="BAJA">Baja</option><option value="MEDIA">Media</option><option value="ALTA">Alta</option><option value="URGENTE">Urgente</option></select></label><label className="block text-sm font-semibold text-gray-700">Mensaje adicional<textarea className="mt-2 min-h-24 w-full rounded-lg border border-gray-200 px-3 py-2 font-normal" maxLength={2000} onChange={(event) => setMessage(event.target.value)} value={message} /></label></div><footer className="mt-6 flex justify-end gap-3"><button className="h-10 rounded-lg border border-gray-200 px-4 text-sm font-semibold text-gray-700" disabled={isSaving} onClick={onClose} type="button">Cancelar</button><button className="h-10 rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white disabled:opacity-50" disabled={isSaving || (!notifyStudent && !notifyGuardians)} type="submit">{isSaving ? "Publicando..." : "Confirmar publicación"}</button></footer></form></div>;
+}
+
 function RecommendationDetailModal({
   isSaving,
   onClose,
   onReview,
+  onPublish,
+  onCommunicate,
   recommendation,
   requestError,
 }: {
@@ -107,6 +129,8 @@ function RecommendationDetailModal({
     status: Exclude<RecommendationReviewStatus, "PENDIENTE">,
     revisedText?: string,
   ) => Promise<void>;
+  onPublish: () => void;
+  onCommunicate: () => void;
   recommendation: TeacherRecommendation;
   requestError: string | null;
 }) {
@@ -214,9 +238,11 @@ function RecommendationDetailModal({
 
           <footer className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
             <button className="h-11 rounded-lg border border-gray-200 px-4 text-sm font-semibold text-gray-700 disabled:opacity-50" disabled={isSaving} onClick={onClose} type="button">Cerrar</button>
-            <button className="h-11 rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50" disabled={isSaving} onClick={reject} type="button">Rechazar</button>
-            <button className="h-11 rounded-lg border border-brand-200 px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50" disabled={isSaving} onClick={submitEdited} type="button">Editar y publicar</button>
-            <button className="h-11 rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50" disabled={isSaving} onClick={() => onReview("APROBADA")} type="button">{isSaving ? "Actualizando..." : "Aprobar"}</button>
+            {recommendation.estado_revision === "PENDIENTE" && <button className="h-11 rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50" disabled={isSaving} onClick={reject} type="button">Rechazar</button>}
+            {recommendation.estado_revision === "PENDIENTE" && <button className="h-11 rounded-lg border border-brand-200 px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50" disabled={isSaving} onClick={submitEdited} type="button">Editar</button>}
+            {(["APROBADA", "EDITADA"] as RecommendationReviewStatus[]).includes(recommendation.estado_revision) && <button className="h-11 rounded-lg border border-emerald-200 px-4 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50" disabled={isSaving} onClick={onPublish} type="button">Publicar</button>}
+            {(["APROBADA", "EDITADA"] as RecommendationReviewStatus[]).includes(recommendation.estado_revision) && <button className="h-11 rounded-lg border border-brand-200 px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50" disabled={isSaving} onClick={onCommunicate} type="button">Comunicar</button>}
+            {recommendation.estado_revision === "PENDIENTE" && <button className="h-11 rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50" disabled={isSaving} onClick={() => onReview("APROBADA")} type="button">{isSaving ? "Actualizando..." : "Aprobar"}</button>}
           </footer>
         </div>
       </div>
@@ -239,6 +265,9 @@ export function TeacherRecommendationsPage({ embedded = false, selectedCourseId 
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [publishingRecommendation, setPublishingRecommendation] = useState<TeacherRecommendation | null>(null);
+  const [publicationResult, setPublicationResult] = useState<string | null>(null);
+  const [communicationRecommendation, setCommunicationRecommendation] = useState<TeacherRecommendation | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -352,6 +381,24 @@ export function TeacherRecommendationsPage({ embedded = false, selectedCourseId 
     await refreshAfterMutation();
   };
 
+  const publish = async (payload: { notificar_estudiante: boolean; notificar_apoderados: boolean; prioridad: "BAJA" | "MEDIA" | "ALTA" | "URGENTE"; mensaje_adicional: string }) => {
+    if (!publishingRecommendation) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      const result = await publishTeacherRecommendation(publishingRecommendation.id, payload);
+      const created = String(result.creadas ?? 0);
+      const already = String(result.ya_notificados ?? 0);
+      const sent = String(result.correos_enviados ?? 0);
+      const failed = String(result.correos_fallidos ?? 0);
+      setPublicationResult(`Publicación registrada. Creadas: ${created}; ya notificadas: ${already}; correos enviados: ${sent}; correos fallidos: ${failed}.`);
+      setPublishingRecommendation(null);
+      await refreshAfterMutation();
+    } catch (requestError) {
+      setError(errorMessage(requestError));
+    } finally { setIsSaving(false); }
+  };
+
   return (
     <div className="space-y-5">
       {!embedded && (
@@ -379,6 +426,7 @@ export function TeacherRecommendationsPage({ embedded = false, selectedCourseId 
       </section>
 
       {error && <section className="rounded-lg border border-red-100 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">{error}</section>}
+      {publicationResult && <section className="rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800">{publicationResult}</section>}
       {(isLoading || isLoadingDetail) && <section className="rounded-lg border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">Cargando recomendaciones...</section>}
 
       {!isLoading && recommendations.length === 0 && !error && <section className="rounded-lg border border-dashed border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">No hay recomendaciones para los filtros seleccionados.</section>}
@@ -392,7 +440,9 @@ export function TeacherRecommendationsPage({ embedded = false, selectedCourseId 
       )}
 
       {showGenerate && <TeacherRecordModal courseAssignmentId={selectedCourseId} module="recommendations" onClose={() => setShowGenerate(false)} onSaved={generationSaved} />}
-      {selected && <RecommendationDetailModal isSaving={isSaving} key={`${selected.id}-${selected.estado_revision}`} onClose={() => setSelected(null)} onReview={review} recommendation={selected} requestError={error} />}
+      {selected && <RecommendationDetailModal isSaving={isSaving} key={`${selected.id}-${selected.estado_revision}`} onClose={() => setSelected(null)} onCommunicate={() => setCommunicationRecommendation(selected)} onPublish={() => setPublishingRecommendation(selected)} onReview={review} recommendation={selected} requestError={error} />}
+      {publishingRecommendation && <PublishRecommendationModal isSaving={isSaving} onClose={() => setPublishingRecommendation(null)} onPublished={publish} recommendation={publishingRecommendation} />}
+      {communicationRecommendation && communicationRecommendation.asignacion_curso && <TeacherCommunicationModal contextLabel={`la recomendacion de ${communicationRecommendation.estudiante_label}`} onClose={() => setCommunicationRecommendation(null)} onSent={() => setPublicationResult("Comunicacion enviada correctamente.")} payload={{ asignacion_curso_id: communicationRecommendation.asignacion_curso, matricula_id: communicationRecommendation.matricula, periodo_academico_id: communicationRecommendation.periodo_academico, recomendacion_id: communicationRecommendation.id, tipo: "RECOMENDACION" }} />}
     </div>
   );
 }

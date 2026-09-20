@@ -5,9 +5,11 @@ import {
   getTeacherAttendanceRecords,
   getTeacherCourseStudents,
   registerTeacherAttendance,
+  updateTeacherAttendance,
 } from "../services/teacherService";
 import type {
   AttendancePayload,
+  TeacherAttendanceRecord,
   TeacherCourse,
   TeacherStudent,
 } from "../services/teacherService";
@@ -66,6 +68,7 @@ export function TeacherAttendancePage({ course }: Props) {
   const [students, setStudents] = useState<TeacherStudent[]>([]);
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus | "">>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, TeacherAttendanceRecord>>({});
   const [dirtyDates, setDirtyDates] = useState<Set<string>>(new Set());
   const [selectedDate, setSelectedDate] = useState(() =>
     dateKey(visibleDay(new Date())),
@@ -108,6 +111,14 @@ export function TeacherAttendancePage({ course }: Props) {
             courseRecords.map((item) => [
               cellKey(item.matricula_id, item.fecha),
               item.justificacion ?? "",
+            ]),
+          ),
+        );
+        setAttendanceRecords(
+          Object.fromEntries(
+            courseRecords.map((item) => [
+              cellKey(item.matricula_id, item.fecha),
+              item,
             ]),
           ),
         );
@@ -181,24 +192,80 @@ export function TeacherAttendancePage({ course }: Props) {
     setIsSaving(true);
     setError(null);
     try {
-      await Promise.all(
-        [...dirtyDates].map((date) =>
-          registerTeacherAttendance({
-            asignacion_curso: course.id,
-            fecha: date,
-            registros: students.map((student) => {
-              const key = cellKey(student.id, date);
-              return {
-                matricula: student.id,
-                estado: statuses[key] as AttendanceStatus,
-                justificacion: notes[key]?.trim() || null,
-              };
-            }),
-          }),
-        ),
+      const datesToRegister = [...dirtyDates].filter((date) =>
+        students.some((student) => !attendanceRecords[cellKey(student.id, date)]),
       );
+      const recordsToPatch = [...dirtyDates].flatMap((date) =>
+        datesToRegister.includes(date)
+          ? []
+          : students.flatMap((student) => {
+              const key = cellKey(student.id, date);
+              const current = attendanceRecords[key];
+              const nextStatus = statuses[key] as AttendanceStatus;
+              const nextJustification = notes[key]?.trim() || null;
+              if (
+                !current ||
+                (current.estado === nextStatus &&
+                  (current.justificacion ?? null) === nextJustification)
+              ) {
+                return [];
+              }
+              return [{ attendanceId: current.id, estado: nextStatus, justificacion: nextJustification }];
+            }),
+      );
+      const [responses, patchedRecords] = await Promise.all([
+        Promise.all(
+          datesToRegister.map((date) =>
+            registerTeacherAttendance({
+              asignacion_curso: course.id,
+              fecha: date,
+              registros: students.map((student) => {
+                const key = cellKey(student.id, date);
+                return {
+                  matricula: student.id,
+                  estado: statuses[key] as AttendanceStatus,
+                  justificacion: notes[key]?.trim() || null,
+                };
+              }),
+            }),
+          ),
+        ),
+        Promise.all(
+          recordsToPatch.map((record) =>
+            updateTeacherAttendance(record.attendanceId, {
+              estado: record.estado,
+              justificacion: record.justificacion,
+            }),
+          ),
+        ),
+      ]);
+      const savedRecords = [
+        ...responses.flatMap((response) => response.registros ?? []),
+        ...patchedRecords,
+      ];
+      if (savedRecords.length > 0) {
+        setAttendanceRecords((current) => ({
+          ...current,
+          ...Object.fromEntries(
+            savedRecords.map((item) => [
+              cellKey(item.matricula_id, item.fecha),
+              item,
+            ]),
+          ),
+        }));
+      }
       setDirtyDates(new Set());
-      setSuccess("Asistencia semanal guardada correctamente.");
+      const generatedNotifications = responses.reduce(
+        (total, response) => total + Number(response.notificaciones_generadas ?? 0),
+        0,
+      );
+      setSuccess(
+        recordsToPatch.length > 0
+          ? "Asistencia actualizada. El backend gestiono las notificaciones de los cambios."
+          : generatedNotifications > 0
+            ? `Asistencia guardada. Se enviaron ${generatedNotifications} ${generatedNotifications === 1 ? "notificacion" : "notificaciones"}.`
+            : "Asistencia guardada correctamente. No se generaron notificaciones nuevas.",
+      );
     } catch (requestError) {
       setError(message(requestError));
     } finally {
@@ -249,7 +316,7 @@ export function TeacherAttendancePage({ course }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {pagination.pageItems.map((student) => <tr key={student.id}><td className="px-4 py-3"><p className="font-semibold text-gray-900">{student.estudiante_nombre}</p><p className="mt-1 text-xs text-gray-500">{student.codigo_estudiante}</p></td>{weekDays.map((day) => { const date = dateKey(day); const key = cellKey(student.id, date); const status = statuses[key] ?? ""; return <td className="px-2 py-3 align-top" key={date}><div className="min-h-16"><select aria-label={`Asistencia de ${student.estudiante_nombre} el ${date}`} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold outline-none focus:border-brand-500" onChange={(event) => updateStatus(student.id, date, event.target.value as AttendanceStatus | "")} value={status}><option value="">Sin marcar</option>{STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{status === "JUSTIFICADA" && <input aria-label={`Justificacion de ${student.estudiante_nombre}`} className="mt-2 h-9 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-brand-500" maxLength={500} onChange={(event) => { setNotes((current) => ({ ...current, [key]: event.target.value })); setDirtyDates((current) => new Set(current).add(date)); }} placeholder="Motivo" value={notes[key] ?? ""} />}</div></td>; })}</tr>)}
+                {pagination.pageItems.map((student) => <tr key={student.id}><td className="px-4 py-3"><p className="font-semibold text-gray-900">{student.estudiante_nombre}</p><p className="mt-1 text-xs text-gray-500">{student.codigo_estudiante}</p></td>{weekDays.map((day) => { const date = dateKey(day); const key = cellKey(student.id, date); const status = statuses[key] ?? ""; const activeJustification = attendanceRecords[key]?.justificacion_activa; return <td className="px-2 py-3 align-top" key={date}><div className="min-h-16"><select aria-label={`Asistencia de ${student.estudiante_nombre} el ${date}`} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold outline-none focus:border-brand-500" onChange={(event) => updateStatus(student.id, date, event.target.value as AttendanceStatus | "")} value={status}><option value="">Sin marcar</option>{STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{status === "JUSTIFICADA" && <input aria-label={`Justificacion de ${student.estudiante_nombre}`} className="mt-2 h-9 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-brand-500" maxLength={500} onChange={(event) => { setNotes((current) => ({ ...current, [key]: event.target.value })); setDirtyDates((current) => new Set(current).add(date)); }} placeholder="Motivo" value={notes[key] ?? ""} />}{activeJustification && <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">{activeJustification.estado_label}</p>}</div></td>; })}</tr>)}
               </tbody>
             </table>
           </div>

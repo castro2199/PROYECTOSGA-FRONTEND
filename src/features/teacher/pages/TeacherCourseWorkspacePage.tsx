@@ -11,10 +11,12 @@ import type {
 import { TeacherAttendancePage } from "./TeacherAttendancePage";
 import { TeacherGradesPage } from "./TeacherGradesPage";
 import { TeacherModulePage } from "./TeacherModulePage";
+import { JustificationsPanel } from "../../justifications/components/JustificationsPanel";
 
 export type TeacherCourseSection =
   | "overview"
   | "students"
+  | "justifications"
   | Exclude<TeacherModuleKey, "courses">;
 
 type Props = {
@@ -33,6 +35,7 @@ const SECTIONS: Array<{
   { key: "overview", label: "Resumen del curso", shortLabel: "RS" },
   { key: "students", label: "Estudiantes", shortLabel: "ES" },
   { key: "attendance", label: "Asistencia", shortLabel: "AS" },
+  { key: "justifications", label: "Justificaciones", shortLabel: "JU" },
   { key: "grades", label: "Calificaciones", shortLabel: "CA" },
   { key: "participations", label: "Participaciones", shortLabel: "PA" },
   { key: "observations", label: "Observaciones", shortLabel: "OB" },
@@ -43,6 +46,7 @@ const SECTIONS: Array<{
 
 const SECTION_PATHS: Record<TeacherCourseSection, string> = {
   attendance: "asistencia",
+  justifications: "justificaciones",
   grades: "calificaciones",
   observations: "observaciones",
   overview: "resumen",
@@ -190,10 +194,15 @@ export function TeacherCourseWorkspacePage({
 
       {initialSection === "grades" && <TeacherGradesPage course={course} />}
 
+      {initialSection === "justifications" && (
+        <JustificationsPanel assignmentId={course.id} role="teacher" />
+      )}
+
       {initialSection !== "overview" &&
         initialSection !== "students" &&
         initialSection !== "attendance" &&
-        initialSection !== "grades" && (
+        initialSection !== "grades" &&
+        initialSection !== "justifications" && (
         <TeacherModulePage embedded module={initialSection} selectedCourseId={courseId} token={token} />
       )}
     </div>

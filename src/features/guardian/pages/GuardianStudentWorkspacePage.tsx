@@ -29,8 +29,8 @@ export function GuardianStudentWorkspacePage({
     setError(null);
     Promise.all([
       getGuardianModuleData<unknown>("students"),
-      getGuardianModuleData<unknown>("attendance"),
-      getGuardianModuleData<unknown>("grades"),
+      getGuardianModuleData<unknown>("attendance", studentId),
+      getGuardianModuleData<unknown>("grades", studentId),
     ])
       .then(([studentResponse, attendanceResponse, gradeResponse]) => {
         if (ignore) return;

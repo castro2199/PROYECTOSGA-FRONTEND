@@ -5,8 +5,12 @@ import {
   type StudentModuleKey,
 } from "../services/studentService";
 import { StudentModulePage } from "./StudentModulePage";
+import { JustificationsPanel } from "../../justifications/components/JustificationsPanel";
 
-export type StudentCourseSection = "overview" | Exclude<StudentModuleKey, "courses">;
+export type StudentCourseSection =
+  | "overview"
+  | "justifications"
+  | Exclude<StudentModuleKey, "courses">;
 
 type Props = {
   courseId: number;
@@ -18,6 +22,7 @@ type Props = {
 const SECTIONS: Array<{ key: StudentCourseSection; label: string; shortLabel: string }> = [
   { key: "overview", label: "Resumen", shortLabel: "RS" },
   { key: "attendance", label: "Mi asistencia", shortLabel: "AS" },
+  { key: "justifications", label: "Justificaciones", shortLabel: "JU" },
   { key: "grades", label: "Mis calificaciones", shortLabel: "CA" },
   { key: "participation", label: "Mi participacion", shortLabel: "PA" },
   { key: "tracking", label: "Mi seguimiento", shortLabel: "SE" },
@@ -25,6 +30,7 @@ const SECTIONS: Array<{ key: StudentCourseSection; label: string; shortLabel: st
 
 const PATHS: Record<StudentCourseSection, string> = {
   attendance: "asistencia",
+  justifications: "justificaciones",
   grades: "calificaciones",
   overview: "resumen",
   participation: "participacion",
@@ -81,6 +87,9 @@ export function StudentCourseWorkspacePage({
 
     {initialSection === "overview" && <section><h3 className="mb-3 text-base font-bold text-gray-900">Informacion del curso</h3><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{SECTIONS.filter((section) => section.key !== "overview").map((section) => <button className="flex min-h-20 items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 text-left shadow-theme-xs transition hover:border-brand-200 hover:bg-brand-50" key={section.key} onClick={() => openSection(section.key)} type="button"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">{section.shortLabel}</span><span className="text-sm font-semibold text-gray-800">{section.label}</span></button>)}</div></section>}
 
-    {initialSection !== "overview" && <StudentModulePage embedded module={initialSection} selectedCourseId={courseId} selectedCourseName={course.curso_nombre} />}
+    {initialSection === "justifications" && (
+      <JustificationsPanel assignmentId={courseId} role="student" />
+    )}
+    {initialSection !== "overview" && initialSection !== "justifications" && <StudentModulePage embedded module={initialSection} selectedCourseId={courseId} selectedCourseName={course.curso_nombre} />}
   </div>;
 }

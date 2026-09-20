@@ -3,6 +3,8 @@ import { PaginationControls } from "../../../shared/components/PaginationControl
 import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { TeacherRecordModal } from "../components/TeacherRecordModal";
 import { TeacherRecommendationsPage } from "./TeacherRecommendationsPage";
+import { FollowUpPage } from "../../followup/pages/FollowUpPage";
+import { ExportPdfButton } from "../../admin/components/ExportPdfButton";
 import {
   getTeacherCourseStudents,
   getTeacherModuleData,
@@ -451,6 +453,10 @@ export function TeacherModulePage({
     );
   }
 
+  if (module === "tracking") {
+    return <FollowUpPage courseId={selectedCourseId} embedded={embedded} role="teacher" />;
+  }
+
   return (
     <div className="space-y-6">
       {!embedded && <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs">
@@ -466,6 +472,7 @@ export function TeacherModulePage({
           </div>
 
           <div className="flex gap-2">
+            {module === "reports" && <ExportPdfButton filters={{ asignacion_curso: selectedCourseId, tipo: "resumen" }} />}
             <button
               aria-label="Actualizar"
               className="h-11 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"

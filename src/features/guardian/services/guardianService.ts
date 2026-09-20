@@ -39,6 +39,12 @@ export type GuardianAttendance = {
   estado: "PRESENTE" | "TARDE" | "FALTA" | "JUSTIFICADA";
   estado_label: string;
   justificacion: string | null;
+  puede_justificar: boolean;
+  justificacion_activa: {
+    id: number;
+    estado: string;
+    estado_label: string;
+  } | null;
 };
 
 export type GuardianGrade = {
@@ -227,8 +233,14 @@ async function requestJson<T>(path: string, init?: RequestInit) {
   return (await response.json().catch(() => null)) as T;
 }
 
-export function getGuardianModuleData<T>(module: GuardianModuleKey) {
-  return requestJson<T>(ENDPOINTS[module]);
+export function getGuardianModuleData<T>(
+  module: GuardianModuleKey,
+  studentId?: number,
+) {
+  const supportsStudentFilter =
+    module === "attendance" || module === "grades" || module === "tracking";
+  const query = supportsStudentFilter && studentId ? `?estudiante=${studentId}` : "";
+  return requestJson<T>(`${ENDPOINTS[module]}${query}`);
 }
 
 export function markGuardianNotificationRead(notificationId: number) {

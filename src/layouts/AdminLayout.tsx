@@ -14,13 +14,14 @@ import { TeachersPage } from "../features/admin/pages/TeachersPage";
 import { GuardiansPage } from "../features/admin/pages/GuardiansPage";
 import { UserRolesPage } from "../features/admin/pages/UserRolesPage";
 import { EnrollmentsPage } from "../features/admin/pages/EnrollmentsPage";
-import { IncidentsPage } from "../features/admin/pages/IncidentsPage";
-import { AdminNotificationsPage } from "../features/admin/pages/AdminNotificationsPage";
-import { ObservationsPage } from "../features/admin/pages/ObservationsPage";
-import { AIRecommendationsPage } from "../features/admin/pages/AIRecommendationsPage";
+import { InstitutionalTrackingPage } from "../features/admin/pages/InstitutionalTrackingPage";
 import { ReportsPage } from "../features/admin/pages/ReportsPage";
 import { AuditPage } from "../features/admin/pages/AuditPage";
 import { SettingsPage } from "../features/admin/pages/SettingsPage";
+import { NotificationCenterPage } from "../features/notifications/pages/NotificationCenterPage";
+import { TeacherNotificationsPage } from "../features/notifications/pages/TeacherNotificationsPage";
+import { NotificationToasts } from "../features/notifications/components/NotificationToasts";
+import type { SgaNotification } from "../features/notifications/types/notification.types";
 import { TeacherModulePage } from "../features/teacher/pages/TeacherModulePage";
 import {
   TeacherCourseWorkspacePage,
@@ -41,6 +42,8 @@ import {
   type GuardianCourseSection,
 } from "../features/guardian/pages/GuardianCourseWorkspacePage";
 import { GuardianPageErrorBoundary } from "../features/guardian/components/GuardianPageErrorBoundary";
+import { FollowUpPage } from "../features/followup/pages/FollowUpPage";
+import { JustificationsPanel } from "../features/justifications/components/JustificationsPanel";
 import type { AuthMenuItem } from "../features/auth/types/auth.types";
 import { normalizeAdminPath } from "../features/admin/utils/adminRoutes";
 
@@ -91,6 +94,40 @@ function normalizeText(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function firstPositiveNumber(source: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = Number(source[key]);
+    if (Number.isInteger(value) && value > 0) return value;
+  }
+  return null;
+}
+
+function notificationActionPath(
+  notification: SgaNotification,
+  fallback: string,
+  isGuardian: boolean,
+) {
+  if (notification.accion_url?.startsWith("/")) return notification.accion_url;
+  if (!isGuardian || !isRecord(notification.datos)) return fallback;
+
+  if (!Boolean(notification.datos.puede_justificar)) return fallback;
+  const studentId = firstPositiveNumber(notification.datos, [
+    "estudiante_id",
+    "estudiante",
+  ]);
+  const courseAssignmentId = firstPositiveNumber(notification.datos, [
+    "asignacion_curso_id",
+    "asignacion_curso",
+  ]);
+
+  if (!studentId || !courseAssignmentId) return fallback;
+  return `/apoderado/mis-estudiantes/${studentId}/cursos/${courseAssignmentId}/asistencia`;
 }
 
 function teacherModuleFromMenuItem(
@@ -176,6 +213,7 @@ function guardianModuleFromPath(path: string): GuardianModuleKey | null {
 const COURSE_SCOPED_MENU_LABELS = new Set([
   "asistencia",
   "calificaciones",
+  "justificaciones",
   "participaciones",
   "observaciones",
   "seguimiento estudiantil",
@@ -188,11 +226,13 @@ const STUDENT_COURSE_SCOPED_MENU_LABELS = new Set([
   "calificaciones",
   "mi participacion",
   "participacion",
+  "justificaciones",
 ]);
 
 const GUARDIAN_STUDENT_SCOPED_MENU_LABELS = new Set([
   "asistencia",
   "calificaciones",
+  "justificaciones",
   "seguimiento",
   "seguimiento estudiantil",
 ]);
@@ -248,6 +288,7 @@ function studentCourseSectionFromSlug(
   const sections: Record<string, StudentCourseSection> = {
     asistencia: "attendance",
     calificaciones: "grades",
+    justificaciones: "justifications",
     participacion: "participation",
     resumen: "overview",
     seguimiento: "tracking",
@@ -294,6 +335,7 @@ function guardianCourseSectionFromSlug(
   const sections: Record<string, GuardianCourseSection> = {
     asistencia: "attendance",
     calificaciones: "grades",
+    justificaciones: "justifications",
     resumen: "overview",
     seguimiento: "tracking",
   };
@@ -313,6 +355,7 @@ function courseSectionFromSlug(slug: string | undefined): TeacherCourseSection {
   const sections: Record<string, TeacherCourseSection> = {
     asistencia: "attendance",
     calificaciones: "grades",
+    justificaciones: "justifications",
     estudiantes: "students",
     observaciones: "observations",
     participaciones: "participations",
@@ -420,12 +463,23 @@ export function AdminLayout({ currentPath, onNavigate }: AdminLayoutProps) {
   const guardianStudentsPath =
     menuItemPath(findGuardianStudentsItem(menuItems) ?? {}) ??
     "/apoderado/mis-estudiantes";
+  const notificationsPath = isTeacher
+    ? "/docente/notificaciones"
+    : isStudent
+      ? "/estudiante/notificaciones"
+      : isGuardian
+        ? "/apoderado/notificaciones"
+        : "/admin/seguimiento/notificaciones";
 
   const handleNavigate = (path: string) => {
     if (!path || path === "#") return;
 
     onNavigate(normalizeAdminPath(path));
     setIsSidebarOpen(false);
+  };
+
+  const handleNotificationAction = (notification: SgaNotification) => {
+    handleNavigate(notificationActionPath(notification, notificationsPath, isGuardian));
   };
 
   const renderContent = () => {
@@ -550,27 +604,55 @@ export function AdminLayout({ currentPath, onNavigate }: AdminLayoutProps) {
       return <EnrollmentsPage token={accessToken} />;
     }
 
+    if (path === "/admin/seguimiento" || path === "/admin/seguimiento/institucional") {
+      return <InstitutionalTrackingPage token={accessToken} />;
+    }
+
+    if (path === "/admin/seguimiento/acciones") {
+      return <FollowUpPage role="admin" />;
+    }
+
+    if (
+      path === "/admin/justificaciones" ||
+      path === "/admin/seguimiento/justificaciones"
+    ) {
+      return <JustificationsPanel role="admin" title="Justificaciones institucionales" />;
+    }
+
     if (path === "/admin/seguimiento/incidencias") {
-      return (
-        <IncidentsPage
-          onOpenNotifications={() =>
-            handleNavigate("/admin/seguimiento/notificaciones")
-          }
-          token={accessToken}
-        />
-      );
+      return <InstitutionalTrackingPage initialTab="incidents" token={accessToken} />;
     }
 
     if (path === "/admin/seguimiento/notificaciones") {
-      return <AdminNotificationsPage token={accessToken} />;
+      return <NotificationCenterPage institutional onNavigate={handleNavigate} />;
     }
 
     if (path === "/admin/seguimiento/observaciones") {
-      return <ObservationsPage token={accessToken} />;
+      return <InstitutionalTrackingPage initialTab="observations" token={accessToken} />;
     }
 
     if (path === "/admin/seguimiento/recomendaciones-ia") {
-      return <AIRecommendationsPage token={accessToken} />;
+      return <InstitutionalTrackingPage initialTab="recommendations" token={accessToken} />;
+    }
+
+    if (isTeacher && path === "/docente/notificaciones") {
+      return <TeacherNotificationsPage onNavigate={handleNavigate} />;
+    }
+
+    if (isTeacher && path === "/docente/justificaciones") {
+      return <JustificationsPanel role="teacher" />;
+    }
+
+    if (isStudent && path === "/estudiante/justificaciones") {
+      return <JustificationsPanel role="student" />;
+    }
+
+    if (isGuardian && path === "/apoderado/justificaciones") {
+      return <JustificationsPanel role="guardian" />;
+    }
+
+    if ((isStudent && path === "/estudiante/notificaciones") || (isGuardian && path === "/apoderado/notificaciones")) {
+      return <NotificationCenterPage onNavigate={handleNavigate} />;
     }
 
     if (path === "/admin/reportes") {
@@ -592,7 +674,9 @@ export function AdminLayout({ currentPath, onNavigate }: AdminLayoutProps) {
     ) {
       return (
         <AdminDashboardPage
+          accessToken={accessToken}
           dashboard={dashboard}
+          onNavigate={handleNavigate}
           primaryRole={primaryRole}
           user={user}
         />
@@ -698,8 +782,10 @@ export function AdminLayout({ currentPath, onNavigate }: AdminLayoutProps) {
       />
 
       <div className="lg:pl-[290px]">
-        <AdminHeader
+      <AdminHeader
           onLogout={logout}
+          onNotificationAction={handleNotificationAction}
+          onNotifications={() => handleNavigate(notificationsPath)}
           onToggleSidebar={() => setIsSidebarOpen(true)}
           primaryRole={primaryRole}
           user={user}
@@ -707,6 +793,7 @@ export function AdminLayout({ currentPath, onNavigate }: AdminLayoutProps) {
         <main className="mx-auto max-w-7xl p-4 sm:p-6">
           {renderContent()}
         </main>
+        <NotificationToasts onOpen={handleNotificationAction} />
       </div>
     </div>
   );

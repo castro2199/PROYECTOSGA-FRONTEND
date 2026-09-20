@@ -45,11 +45,25 @@ export type TeacherPeriod = {
 
 export type TeacherCriterion = {
   id: number;
+  capacidad?: number;
+  capacidad_label?: string;
+  competencia_id?: number;
   nombre?: string;
   criterio_nombre?: string;
   descripcion?: string | null;
   capacidad_nombre?: string;
   competencia_nombre?: string;
+};
+
+export type TeacherCourseCapability = {
+  id: number;
+  competencia: number;
+  competencia_label: string;
+  curso_id: number;
+  curso_label: string;
+  nombre: string;
+  estado: number;
+  estado_label: string;
 };
 
 export type RecommendationReviewStatus =
@@ -106,6 +120,30 @@ export type ReviewRecommendationPayload = {
   texto_revisado?: string;
 };
 
+export type PublishRecommendationPayload = {
+  notificar_estudiante: boolean;
+  notificar_apoderados: boolean;
+  prioridad: "BAJA" | "MEDIA" | "ALTA" | "URGENTE";
+  mensaje_adicional: string;
+};
+
+export type TeacherCommunicationType =
+  | "ASISTENCIA"
+  | "CALIFICACIONES"
+  | "INCIDENCIA"
+  | "RECOMENDACION"
+  | "SEGUIMIENTO";
+
+export type TeacherCommunicationPayload = {
+  matricula_id: number;
+  asignacion_curso_id: number;
+  tipo: TeacherCommunicationType;
+  periodo_academico_id?: number | null;
+  recomendacion_id?: number | null;
+  incidencia_id?: number | null;
+  mensaje_adicional?: string;
+};
+
 export type TeacherAttendanceRecord = {
   id: number;
   matricula_id: number;
@@ -118,6 +156,19 @@ export type TeacherAttendanceRecord = {
   estado: AttendancePayload["registros"][number]["estado"];
   estado_label: string;
   justificacion: string | null;
+  puede_justificar: boolean;
+  justificacion_activa: {
+    id: number;
+    estado: string;
+    estado_label: string;
+  } | null;
+};
+
+export type TeacherAttendanceSaveResponse = {
+  creados: number;
+  actualizados: number;
+  notificaciones_generadas: number;
+  registros: TeacherAttendanceRecord[];
 };
 
 export type TeacherGradeRecord = {
@@ -226,6 +277,22 @@ export function getTeacherCourseCriteria(courseAssignmentId: number) {
   );
 }
 
+export function getTeacherCourseCapabilities(courseAssignmentId: number) {
+  return requestJson<TeacherCourseCapability[]>(
+    `/api/docente/mis-cursos/${courseAssignmentId}/capacidades/`,
+  );
+}
+
+export function createTeacherCourseCriterion(
+  courseAssignmentId: number,
+  payload: { capacidad: number; nombre: string; descripcion?: string },
+) {
+  return postTeacherRecord<TeacherCriterion>(
+    `/api/docente/mis-cursos/${courseAssignmentId}/criterios/`,
+    payload,
+  );
+}
+
 export function getTeacherAttendanceRecords() {
   return requestJson<TeacherAttendanceRecord[]>(TEACHER_ENDPOINTS.attendance);
 }
@@ -243,9 +310,23 @@ function postTeacherRecord<T>(path: string, payload: unknown) {
 }
 
 export function registerTeacherAttendance(payload: AttendancePayload) {
-  return postTeacherRecord<Record<string, unknown>>(
+  return postTeacherRecord<TeacherAttendanceSaveResponse>(
     "/api/docente/asistencias/registrar/",
     payload,
+  );
+}
+
+export function updateTeacherAttendance(
+  attendanceId: number,
+  payload: Pick<AttendancePayload["registros"][number], "estado" | "justificacion">,
+) {
+  return requestJson<TeacherAttendanceRecord>(
+    `/api/docente/asistencias/${attendanceId}/`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
   );
 }
 
@@ -311,5 +392,29 @@ export function reviewTeacherRecommendation(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     },
+  );
+}
+
+export function publishTeacherRecommendation(
+  recommendationId: number,
+  payload: PublishRecommendationPayload,
+) {
+  return postTeacherRecord<Record<string, unknown>>(
+    `${TEACHER_ENDPOINTS.recommendations}${recommendationId}/publicar/`,
+    payload,
+  );
+}
+
+export function previewTeacherCommunication(payload: TeacherCommunicationPayload) {
+  return postTeacherRecord<Record<string, unknown>>(
+    "/api/docente/comunicaciones/previsualizar/",
+    payload,
+  );
+}
+
+export function sendTeacherCommunication(payload: TeacherCommunicationPayload) {
+  return postTeacherRecord<Record<string, unknown>>(
+    "/api/docente/comunicaciones/enviar/",
+    payload,
   );
 }

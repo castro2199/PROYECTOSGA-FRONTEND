@@ -103,11 +103,23 @@ export const adminMenu: AdminMenuItem[] = [
     permission: "enrollments.view",
   },
   {
-    label: "Seguimiento",
+    label: "Seguimiento institucional",
     path: "/admin/seguimiento",
     icon: menuIcon("SG"),
     permission: "tracking.view",
     children: [
+      {
+        label: "Todos",
+        path: "/admin/seguimiento",
+        icon: null,
+        permission: "tracking.view",
+      },
+      {
+        label: "Acciones de seguimiento",
+        path: "/admin/seguimiento/acciones",
+        icon: null,
+        permission: "tracking.view",
+      },
       {
         label: "Incidencias",
         path: "/admin/seguimiento/incidencias",

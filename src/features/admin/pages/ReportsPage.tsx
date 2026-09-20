@@ -1,4 +1,5 @@
 import { useReports } from "../hooks/useReports";
+import { ExportPdfButton } from "../components/ExportPdfButton";
 import type { ReportsBundle } from "../types/reports.types";
 
 type ReportsPageProps = {
@@ -148,6 +149,8 @@ export function ReportsPage({ token }: ReportsPageProps) {
           </p>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+        <ExportPdfButton filters={{ tipo: "resumen" }} />
         <button
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
           disabled={isLoading}
@@ -157,6 +160,7 @@ export function ReportsPage({ token }: ReportsPageProps) {
           <img alt="" className="h-4 w-4" src="/admin-icons/docs.svg" />
           {isLoading ? "Actualizando..." : "Actualizar"}
         </button>
+        </div>
       </section>
 
       {error && (

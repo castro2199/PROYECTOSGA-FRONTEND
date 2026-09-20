@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { AuthProvider } from "./features/auth/context/AuthContext";
 import { useAuth } from "./features/auth/hooks/useAuth";
 import { LoginPage } from "./features/auth/pages/LoginPage";
+import { RecoverPasswordPage } from "./features/auth/pages/RecoverPasswordPage";
+import { ConfirmPasswordResetPage } from "./features/auth/pages/ConfirmPasswordResetPage";
 import { AdminLayout } from "./layouts/AdminLayout";
+import { NotificationProvider } from "./features/notifications/context/NotificationProvider";
 
 function getCurrentPath() {
   return window.location.pathname || "/admin";
@@ -38,6 +41,10 @@ function LoadingScreen() {
 function AppRoutes() {
   const { isAuthenticated, isInitializing } = useAuth();
   const [currentPath, setCurrentPath] = useState(getCurrentPath);
+  const isPublicAuthPath =
+    currentPath === "/login" ||
+    currentPath === "/recuperar-contrasena" ||
+    currentPath === "/recuperar-contrasena/confirmar";
 
   useEffect(() => {
     const syncPath = () => setCurrentPath(getCurrentPath());
@@ -51,25 +58,33 @@ function AppRoutes() {
   useEffect(() => {
     if (isInitializing) return;
 
-    if (!isAuthenticated && currentPath !== "/login") {
+    if (!isAuthenticated && !isPublicAuthPath) {
       navigateTo("/login", true);
       return;
     }
 
-    if (isAuthenticated && currentPath === "/login") {
+    if (isAuthenticated && isPublicAuthPath) {
       navigateTo("/admin", true);
     }
-  }, [currentPath, isAuthenticated, isInitializing]);
+  }, [currentPath, isAuthenticated, isInitializing, isPublicAuthPath]);
 
   if (isInitializing) {
     return <LoadingScreen />;
   }
 
   if (!isAuthenticated) {
+    if (currentPath === "/recuperar-contrasena") {
+      return <RecoverPasswordPage />;
+    }
+
+    if (currentPath === "/recuperar-contrasena/confirmar") {
+      return <ConfirmPasswordResetPage />;
+    }
+
     return <LoginPage />;
   }
 
-  return <AdminLayout currentPath={currentPath} onNavigate={navigateTo} />;
+  return <NotificationProvider><AdminLayout currentPath={currentPath} onNavigate={navigateTo} /></NotificationProvider>;
 }
 
 function App() {

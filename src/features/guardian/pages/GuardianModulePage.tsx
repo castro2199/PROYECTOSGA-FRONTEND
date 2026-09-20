@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PaginationControls } from "../../../shared/components/PaginationControls";
+import { FollowUpPage } from "../../followup/pages/FollowUpPage";
+import { JustifyAttendanceModal } from "../components/JustifyAttendanceModal";
 import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import {
   extractGuardianItems,
@@ -88,9 +90,29 @@ const ATTENDANCE_STYLES: Record<string, string> = {
   TARDE: "bg-yellow-50 text-yellow-700",
 };
 
-function AttendanceView({ records, selectedCourseId, selectedStudentId }: { records: GuardianAttendance[]; selectedCourseId?: number; selectedStudentId?: number }) {
+function JustificationStatus({ record }: { record: GuardianAttendance }) {
+  if (!record.justificacion_activa) return null;
+  return (
+    <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
+      {record.justificacion_activa.estado_label}
+    </p>
+  );
+}
+
+function AttendanceView({
+  records,
+  selectedCourseId,
+  selectedStudentId,
+  onRefresh,
+}: {
+  records: GuardianAttendance[];
+  selectedCourseId?: number;
+  selectedStudentId?: number;
+  onRefresh: () => void;
+}) {
   const [studentId, setStudentId] = useState(selectedStudentId ? String(selectedStudentId) : "");
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
+  const [attendanceToJustify, setAttendanceToJustify] = useState<GuardianAttendance | null>(null);
   const students = [...new Map(records.map((record) => [record.estudiante_id, record.estudiante_nombre])).entries()];
   const studentRecords = studentId ? records.filter((record) => String(record.estudiante_id) === studentId) : records;
   const filtered = selectedCourseId
@@ -100,8 +122,27 @@ function AttendanceView({ records, selectedCourseId, selectedStudentId }: { reco
   const weekDays = useMemo(() => Array.from({ length: 5 }, (_, index) => moveDays(weekStart, index)), [weekStart]);
   const weekRecords = filtered.filter((record) => weekDays.some((day) => dateKey(day) === record.fecha));
   const count = (status: GuardianAttendance["estado"]) => filtered.filter((record) => record.estado === status).length;
-  return <div className="space-y-4"><section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Presentes" value={count("PRESENTE")} /><Metric label="Tardanzas" value={count("TARDE")} /><Metric label="Faltas" value={count("FALTA")} /><Metric label="Justificadas" value={count("JUSTIFICADA")} /></section><section className="rounded-lg border border-gray-200 bg-white p-4 shadow-theme-xs"><div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">{!selectedStudentId && <div className="w-full max-w-sm"><label className="mb-2 block text-sm font-semibold text-gray-700">Estudiante</label><select className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm" onChange={(event) => setStudentId(event.target.value)} value={studentId}><option value="">Todos los estudiantes</option>{students.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>}<div className="flex gap-2"><button aria-label="Semana anterior" className="h-10 w-10 rounded-lg border border-gray-200" onClick={() => setWeekStart((current) => moveDays(current, -7))} type="button">&lt;</button><button className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-semibold" onClick={() => setWeekStart(mondayOf(new Date()))} type="button">Semana actual</button><button aria-label="Semana siguiente" className="h-10 w-10 rounded-lg border border-gray-200" onClick={() => setWeekStart((current) => moveDays(current, 7))} type="button">&gt;</button></div></div></section>{filtered.length === 0 ? <EmptyState>No hay asistencias registradas para este estudiante.</EmptyState> : <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-theme-xs"><div className="overflow-x-auto"><table className="min-w-[850px] table-fixed text-sm"><thead className="bg-gray-50"><tr><th className="w-56 px-4 py-4 text-left">Curso</th>{weekDays.map((day) => <th className="px-3 py-3 text-center" key={dateKey(day)}><span className="block text-xs uppercase text-gray-500">{day.toLocaleDateString("es-PE", { weekday: "short" })}</span><span className="mt-1 block">{day.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" })}</span></th>)}</tr></thead><tbody className="divide-y divide-gray-100">{courses.map(([id, name]) => <tr key={id}><td className="px-4 py-5 font-semibold text-gray-900">{name}</td>{weekDays.map((day) => { const item = weekRecords.find((record) => record.asignacion_curso_id === id && record.fecha === dateKey(day)); return <td className="px-2 py-4 text-center" key={dateKey(day)}>{item ? <span className={`inline-flex min-h-9 min-w-24 items-center justify-center rounded-lg px-2 text-xs font-semibold ${ATTENDANCE_STYLES[item.estado]}`}>{item.estado_label}</span> : <span className="text-gray-300">-</span>}{item?.justificacion && <p className="mt-2 text-xs text-gray-500">{item.justificacion}</p>}</td>; })}</tr>)}</tbody></table></div></section>}</div>;
+
+  return (
+    <div className="space-y-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Presentes" value={count("PRESENTE")} />
+        <Metric label="Tardanzas" value={count("TARDE")} />
+        <Metric label="Faltas" value={count("FALTA")} />
+        <Metric label="Justificadas" value={count("JUSTIFICADA")} />
+      </section>
+      <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-theme-xs">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          {!selectedStudentId && <div className="w-full max-w-sm"><label className="mb-2 block text-sm font-semibold text-gray-700">Estudiante</label><select className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm" onChange={(event) => setStudentId(event.target.value)} value={studentId}><option value="">Todos los estudiantes</option>{students.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>}
+          <div className="flex gap-2"><button aria-label="Semana anterior" className="h-10 w-10 rounded-lg border border-gray-200" onClick={() => setWeekStart((current) => moveDays(current, -7))} type="button">&lt;</button><button className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-semibold" onClick={() => setWeekStart(mondayOf(new Date()))} type="button">Semana actual</button><button aria-label="Semana siguiente" className="h-10 w-10 rounded-lg border border-gray-200" onClick={() => setWeekStart((current) => moveDays(current, 7))} type="button">&gt;</button></div>
+        </div>
+      </section>
+      {filtered.length === 0 ? <EmptyState>No hay asistencias registradas para este estudiante.</EmptyState> : <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-theme-xs"><div className="overflow-x-auto"><table className="min-w-[850px] table-fixed text-sm"><thead className="bg-gray-50"><tr><th className="w-56 px-4 py-4 text-left">Curso</th>{weekDays.map((day) => <th className="px-3 py-3 text-center" key={dateKey(day)}><span className="block text-xs uppercase text-gray-500">{day.toLocaleDateString("es-PE", { weekday: "short" })}</span><span className="mt-1 block">{day.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" })}</span></th>)}</tr></thead><tbody className="divide-y divide-gray-100">{courses.map(([id, name]) => <tr key={id}><td className="px-4 py-5 font-semibold text-gray-900">{name}</td>{weekDays.map((day) => { const item = weekRecords.find((record) => record.asignacion_curso_id === id && record.fecha === dateKey(day)); const canJustify = Boolean(item?.puede_justificar) && (item?.estado === "FALTA" || item?.estado === "TARDE"); return <td className="px-2 py-4 text-center align-top" key={dateKey(day)}>{item ? <><span className={`inline-flex min-h-9 min-w-24 items-center justify-center rounded-lg px-2 text-xs font-semibold ${ATTENDANCE_STYLES[item.estado]}`}>{item.estado_label}</span><JustificationStatus record={item} />{canJustify && <button className="mt-2 h-8 rounded-lg border border-brand-200 px-2 text-xs font-semibold text-brand-700 hover:bg-brand-50" onClick={() => setAttendanceToJustify(item)} type="button">Justificar falta</button>}{item.justificacion && <p className="mt-2 text-xs text-gray-500">{item.justificacion}</p>}</> : <span className="text-gray-300">-</span>}</td>; })}</tr>)}</tbody></table></div></section>}
+      {attendanceToJustify && <JustifyAttendanceModal attendance={{ id: attendanceToJustify.id, cursoNombre: attendanceToJustify.curso_nombre, estadoLabel: attendanceToJustify.estado_label, estudianteNombre: attendanceToJustify.estudiante_nombre, fecha: attendanceToJustify.fecha }} onClose={() => setAttendanceToJustify(null)} onSaved={() => onRefresh()} />}
+    </div>
+  );
 }
+
 
 const GRADE_STYLES: Record<string, string> = { AD: "bg-green-100 text-green-800", A: "bg-blue-100 text-blue-800", B: "bg-amber-100 text-amber-800", C: "bg-red-100 text-red-800" };
 
@@ -183,7 +224,10 @@ function GuardianRecommendationsView({ recommendations }: { recommendations: Gua
 }
 
 function TrackingView({ data, selectedCourseId, selectedCourseName, selectedStudentId }: { data: unknown; selectedCourseId?: number; selectedCourseName?: string; selectedStudentId?: number }) {
-  const source = isRecord(data) ? data : {};
+  void data;
+  void selectedCourseName;
+  return <FollowUpPage courseId={selectedCourseId} embedded guardianStudentId={selectedStudentId} role="guardian" />;
+  const source: Record<string, unknown> = isRecord(data) ? (data as Record<string, unknown>) : {};
   const recommendations = collectGuardianRecommendations(data).filter((item) => {
     if (!item.estado_revision || !["APROBADA", "EDITADA"].includes(item.estado_revision)) return false;
     if (selectedStudentId && item.contextStudentId && item.contextStudentId !== selectedStudentId) return false;
@@ -222,9 +266,9 @@ export function GuardianModulePage({ embedded = false, module, onOpenStudent, se
     let ignore = false;
     setIsLoading(true);
     setError(null);
-    getGuardianModuleData<unknown>(module).then((response) => { if (!ignore) setData(response); }).catch((requestError: unknown) => { if (!ignore) setError(requestError instanceof Error ? requestError.message : "No se pudo cargar la informacion."); }).finally(() => { if (!ignore) setIsLoading(false); });
+    getGuardianModuleData<unknown>(module, selectedStudentId).then((response) => { if (!ignore) setData(response); }).catch((requestError: unknown) => { if (!ignore) setError(requestError instanceof Error ? requestError.message : "No se pudo cargar la informacion."); }).finally(() => { if (!ignore) setIsLoading(false); });
     return () => { ignore = true; };
-  }, [module, refreshKey]);
+  }, [module, refreshKey, selectedStudentId]);
 
   const items = extractGuardianItems(data);
   const students = extractGuardianStudents(data);
@@ -239,5 +283,5 @@ export function GuardianModulePage({ embedded = false, module, onOpenStudent, se
     }
   };
 
-  return <div className="space-y-5">{!embedded && <section className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-theme-xs sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-semibold text-brand-600">Portal del apoderado</p><h2 className="mt-2 text-2xl font-bold text-gray-900">{config.title}</h2><p className="mt-2 text-sm leading-6 text-gray-600">{config.description}</p></div><button className="h-10 rounded-lg border border-gray-200 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" disabled={isLoading} onClick={() => setRefreshKey((value) => value + 1)} type="button">Actualizar</button></section>}{isLoading && <section className="rounded-lg border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">Cargando informacion...</section>}{!isLoading && error && <section className="rounded-lg border border-red-100 bg-red-50 px-6 py-8 text-sm font-medium text-red-700">{error}</section>}{!isLoading && !error && module === "students" && <><StudentsView onOpenStudent={onOpenStudent} students={studentsPagination.pageItems} /><section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-theme-xs"><PaginationControls currentPage={studentsPagination.currentPage} itemLabel="estudiantes" onPageChange={studentsPagination.setCurrentPage} pageSize={studentsPagination.pageSize} totalItems={studentsPagination.totalItems} totalPages={studentsPagination.totalPages} /></section></>}{!isLoading && !error && module === "attendance" && <AttendanceView records={items as GuardianAttendance[]} selectedCourseId={selectedCourseId} selectedStudentId={selectedStudentId} />}{!isLoading && !error && module === "grades" && <GradesView records={items as GuardianGrade[]} selectedCourseId={selectedCourseId} selectedStudentId={selectedStudentId} />}{!isLoading && !error && module === "tracking" && <TrackingView data={data} selectedCourseId={selectedCourseId} selectedCourseName={selectedCourseName} selectedStudentId={selectedStudentId} />}{!isLoading && !error && module === "notifications" && <><NotificationsView notifications={notificationsPagination.pageItems as GuardianNotification[]} onRead={markRead} /><section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-theme-xs"><PaginationControls currentPage={notificationsPagination.currentPage} itemLabel="notificaciones" onPageChange={notificationsPagination.setCurrentPage} pageSize={notificationsPagination.pageSize} totalItems={notificationsPagination.totalItems} totalPages={notificationsPagination.totalPages} /></section></>}</div>;
+  return <div className="space-y-5">{!embedded && <section className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-5 shadow-theme-xs sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-semibold text-brand-600">Portal del apoderado</p><h2 className="mt-2 text-2xl font-bold text-gray-900">{config.title}</h2><p className="mt-2 text-sm leading-6 text-gray-600">{config.description}</p></div><button className="h-10 rounded-lg border border-gray-200 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" disabled={isLoading} onClick={() => setRefreshKey((value) => value + 1)} type="button">Actualizar</button></section>}{isLoading && <section className="rounded-lg border border-gray-200 bg-white px-6 py-10 text-center text-sm text-gray-500">Cargando informacion...</section>}{!isLoading && error && <section className="rounded-lg border border-red-100 bg-red-50 px-6 py-8 text-sm font-medium text-red-700">{error}</section>}{!isLoading && !error && module === "students" && <><StudentsView onOpenStudent={onOpenStudent} students={studentsPagination.pageItems} /><section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-theme-xs"><PaginationControls currentPage={studentsPagination.currentPage} itemLabel="estudiantes" onPageChange={studentsPagination.setCurrentPage} pageSize={studentsPagination.pageSize} totalItems={studentsPagination.totalItems} totalPages={studentsPagination.totalPages} /></section></>}{!isLoading && !error && module === "attendance" && <AttendanceView onRefresh={() => setRefreshKey((value) => value + 1)} records={items as GuardianAttendance[]} selectedCourseId={selectedCourseId} selectedStudentId={selectedStudentId} />}{!isLoading && !error && module === "grades" && <GradesView records={items as GuardianGrade[]} selectedCourseId={selectedCourseId} selectedStudentId={selectedStudentId} />}{!isLoading && !error && module === "tracking" && <TrackingView data={data} selectedCourseId={selectedCourseId} selectedCourseName={selectedCourseName} selectedStudentId={selectedStudentId} />}{!isLoading && !error && module === "notifications" && <><NotificationsView notifications={notificationsPagination.pageItems as GuardianNotification[]} onRead={markRead} /><section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-theme-xs"><PaginationControls currentPage={notificationsPagination.currentPage} itemLabel="notificaciones" onPageChange={notificationsPagination.setCurrentPage} pageSize={notificationsPagination.pageSize} totalItems={notificationsPagination.totalItems} totalPages={notificationsPagination.totalPages} /></section></>}</div>;
 }

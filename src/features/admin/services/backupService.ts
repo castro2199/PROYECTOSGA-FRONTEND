@@ -1,0 +1,12 @@
+import { authFetch } from "../../auth/services/authService";
+import { formatApiObject } from "../utils/apiMessages";
+
+export type Backup = Record<string, unknown> & { id: number; tipo?: string; tipo_label?: string; estado?: string; estado_label?: string; estado_url?: string; fecha_creacion?: string; fecha_finalizacion?: string | null; detalle_error?: string | null; nombre_archivo?: string; tamano_archivo?: number | null; iniciado_por_label?: string };
+export type BackupList = { count: number; results: Backup[] };
+async function request<T>(path: string, init?: RequestInit) { const response=await authFetch(path,init); const data=await response.json().catch(()=>null); if(!response.ok) throw new Error((data&&typeof data==="object"&&formatApiObject(data as Record<string,unknown>))||(response.status===404?"El respaldo ya no esta disponible.":response.status===403?"No tienes permiso para realizar esta accion.":"No se pudo completar la solicitud.")); return data as T; }
+export async function getBackups(): Promise<BackupList> { const data=await request<unknown>("/api/administracion/backups/"); if(data&&typeof data==="object"&&!Array.isArray(data)){const record=data as Record<string,unknown>;return {count:Number(record.count??0),results:Array.isArray(record.results)?record.results as Backup[]:[]};}return {count:Array.isArray(data)?data.length:0,results:Array.isArray(data)?data as Backup[]:[]}; }
+export function getBackup(pathOrId: string|number) { return request<Backup>(typeof pathOrId==="string"?pathOrId:`/api/administracion/backups/${pathOrId}/`); }
+export function createBackup() { return request<Backup>("/api/administracion/backups/crear/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmacion:"CREAR BACKUP"})}); }
+export function restoreBackup(id:number) { return request<Backup>(`/api/administracion/backups/${id}/restaurar/`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmacion:"RESTAURAR BACKUP"})}); }
+export function deleteBackup(id:number) { return request<unknown>(`/api/administracion/backups/${id}/`,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmacion:"ELIMINAR BACKUP"})}); }
+export async function downloadBackup(id:number) { const data=await request<Record<string,unknown>>(`/api/administracion/backups/${id}/descarga/`); const url=typeof data.url==="string"?data.url:""; if(!url)throw new Error("El servidor no proporciono una URL de descarga valida."); window.open(url,"_blank","noopener,noreferrer"); }

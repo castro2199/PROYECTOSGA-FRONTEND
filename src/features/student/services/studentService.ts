@@ -23,12 +23,22 @@ export type StudentCourse = {
 
 export type StudentAttendance = {
   id: number;
+  matricula_id: number;
+  estudiante_id: number;
+  estudiante_codigo: string;
+  estudiante_nombre: string;
   asignacion_curso_id: number;
   curso_nombre: string;
   fecha: string;
   estado: "PRESENTE" | "TARDE" | "FALTA" | "JUSTIFICADA";
   estado_label: string;
   justificacion: string | null;
+  puede_justificar: boolean;
+  justificacion_activa: {
+    id: number;
+    estado: string;
+    estado_label: string;
+  } | null;
 };
 
 export type StudentGrade = {

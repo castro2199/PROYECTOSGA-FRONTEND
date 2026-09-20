@@ -2,6 +2,8 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useAcademicYears } from "../hooks/useAcademicYears";
 import { useSettings } from "../hooks/useSettings";
+import { useAuth } from "../../auth/hooks/useAuth";
+import { BackupsPanel } from "../components/BackupsPanel";
 import type { InstitutionalSettings } from "../types/settings.types";
 
 type SettingsPageProps = {
@@ -94,6 +96,7 @@ function validate(form: FormState) {
 }
 
 export function SettingsPage({ token }: SettingsPageProps) {
+  const { user } = useAuth();
   const { error, isLoading, isSaving, reload, saveSettings, settings } =
     useSettings(token);
   const {
@@ -428,6 +431,7 @@ export function SettingsPage({ token }: SettingsPageProps) {
           </aside>
         </form>
       )}
+      <BackupsPanel isSuperuser={Boolean(user?.is_superuser)} />
     </div>
   );
 }

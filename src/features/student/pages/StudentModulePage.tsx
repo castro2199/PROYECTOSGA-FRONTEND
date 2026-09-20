@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PaginationControls } from "../../../shared/components/PaginationControls";
 import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import { getStudentModuleData } from "../services/studentService";
+import { FollowUpPage } from "../../followup/pages/FollowUpPage";
 import type {
   StudentAttendance,
   StudentCourse,
@@ -105,6 +106,15 @@ const ATTENDANCE_STYLES: Record<string, string> = {
   TARDE: "bg-yellow-50 text-yellow-700",
 };
 
+function AttendanceJustificationStatus({ record }: { record: StudentAttendance }) {
+  if (!record.justificacion_activa) return null;
+  return (
+    <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800">
+      {record.justificacion_activa.estado_label}
+    </p>
+  );
+}
+
 function AttendanceView({ records, selectedCourseId }: { records: StudentAttendance[]; selectedCourseId?: number }) {
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [courseId, setCourseId] = useState(selectedCourseId ? String(selectedCourseId) : "");
@@ -115,7 +125,7 @@ function AttendanceView({ records, selectedCourseId }: { records: StudentAttenda
   const rows = courseId ? courses.filter(([id]) => String(id) === courseId) : courses;
   const count = (status: StudentAttendance["estado"]) => filtered.filter((item) => item.estado === status).length;
 
-  return <div className="space-y-4"><section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Presentes" value={count("PRESENTE")} /><Metric label="Tardanzas" value={count("TARDE")} /><Metric label="Faltas" value={count("FALTA")} /><Metric label="Justificadas" value={count("JUSTIFICADA")} /></section><section className="rounded-lg border border-gray-200 bg-white p-4 shadow-theme-xs"><div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">{!selectedCourseId && <div className="w-full max-w-sm"><label className="mb-2 block text-sm font-semibold text-gray-700">Curso</label><select className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm" onChange={(event) => setCourseId(event.target.value)} value={courseId}><option value="">Todos los cursos</option>{courses.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>}<div className="flex gap-2"><button aria-label="Semana anterior" className="h-10 w-10 rounded-lg border border-gray-200" onClick={() => setWeekStart((current) => moveDays(current, -7))} type="button">&lt;</button><button className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-semibold" onClick={() => setWeekStart(mondayOf(new Date()))} type="button">Semana actual</button><button aria-label="Semana siguiente" className="h-10 w-10 rounded-lg border border-gray-200" onClick={() => setWeekStart((current) => moveDays(current, 7))} type="button">&gt;</button></div></div></section>{filtered.length === 0 ? <EmptyState>Todavia no tienes registros de asistencia en este curso.</EmptyState> : <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-theme-xs"><div className="overflow-x-auto"><table className="min-w-[850px] table-fixed text-sm"><thead className="bg-gray-50"><tr><th className="w-56 px-4 py-4 text-left">Curso</th>{weekDays.map((day) => <th className="px-3 py-3 text-center" key={dateKey(day)}><span className="block text-xs uppercase text-gray-500">{day.toLocaleDateString("es-PE", { weekday: "short" })}</span><span className="mt-1 block text-gray-800">{day.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" })}</span></th>)}</tr></thead><tbody className="divide-y divide-gray-100">{rows.map(([id, name]) => <tr key={id}><td className="px-4 py-5 font-semibold text-gray-900">{name}</td>{weekDays.map((day) => { const item = weekRecords.find((record) => record.asignacion_curso_id === id && record.fecha === dateKey(day)); return <td className="px-2 py-4 text-center" key={dateKey(day)}>{item ? <span className={`inline-flex min-h-9 min-w-24 items-center justify-center rounded-lg px-2 text-xs font-semibold ${ATTENDANCE_STYLES[item.estado]}`}>{item.estado_label}</span> : <span className="text-gray-300">-</span>}{item?.justificacion && <p className="mt-2 text-xs text-gray-500" title={item.justificacion}>{item.justificacion}</p>}</td>; })}</tr>)}</tbody></table></div></section>}</div>;
+  return <div className="space-y-4"><section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Presentes" value={count("PRESENTE")} /><Metric label="Tardanzas" value={count("TARDE")} /><Metric label="Faltas" value={count("FALTA")} /><Metric label="Justificadas" value={count("JUSTIFICADA")} /></section><section className="rounded-lg border border-gray-200 bg-white p-4 shadow-theme-xs"><div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">{!selectedCourseId && <div className="w-full max-w-sm"><label className="mb-2 block text-sm font-semibold text-gray-700">Curso</label><select className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm" onChange={(event) => setCourseId(event.target.value)} value={courseId}><option value="">Todos los cursos</option>{courses.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>}<div className="flex gap-2"><button aria-label="Semana anterior" className="h-10 w-10 rounded-lg border border-gray-200" onClick={() => setWeekStart((current) => moveDays(current, -7))} type="button">&lt;</button><button className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-semibold" onClick={() => setWeekStart(mondayOf(new Date()))} type="button">Semana actual</button><button aria-label="Semana siguiente" className="h-10 w-10 rounded-lg border border-gray-200" onClick={() => setWeekStart((current) => moveDays(current, 7))} type="button">&gt;</button></div></div></section>{filtered.length === 0 ? <EmptyState>Todavia no tienes registros de asistencia en este curso.</EmptyState> : <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-theme-xs"><div className="overflow-x-auto"><table className="min-w-[850px] table-fixed text-sm"><thead className="bg-gray-50"><tr><th className="w-56 px-4 py-4 text-left">Curso</th>{weekDays.map((day) => <th className="px-3 py-3 text-center" key={dateKey(day)}><span className="block text-xs uppercase text-gray-500">{day.toLocaleDateString("es-PE", { weekday: "short" })}</span><span className="mt-1 block text-gray-800">{day.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit" })}</span></th>)}</tr></thead><tbody className="divide-y divide-gray-100">{rows.map(([id, name]) => <tr key={id}><td className="px-4 py-5 font-semibold text-gray-900">{name}</td>{weekDays.map((day) => { const item = weekRecords.find((record) => record.asignacion_curso_id === id && record.fecha === dateKey(day)); return <td className="px-2 py-4 text-center align-top" key={dateKey(day)}>{item ? <><span className={`inline-flex min-h-9 min-w-24 items-center justify-center rounded-lg px-2 text-xs font-semibold ${ATTENDANCE_STYLES[item.estado]}`}>{item.estado_label}</span><AttendanceJustificationStatus record={item} />{item.justificacion && <p className="mt-2 text-xs text-gray-500" title={item.justificacion}>{item.justificacion}</p>}</> : <span className="text-gray-300">-</span>}</td>; })}</tr>)}</tbody></table></div></section>}</div>;
 }
 
 const GRADE_STYLES: Record<string, string> = { AD: "bg-green-100 text-green-800", A: "bg-blue-100 text-blue-800", B: "bg-amber-100 text-amber-800", C: "bg-red-100 text-red-800" };
@@ -166,7 +176,10 @@ function RecommendationsView({ recommendations }: { recommendations: PublishedRe
 }
 
 function TrackingView({ data, selectedCourseId, selectedCourseName }: { data: unknown; selectedCourseId?: number; selectedCourseName?: string }) {
-  const source = isRecord(data) ? data : {};
+  void data;
+  void selectedCourseName;
+  return <FollowUpPage courseId={selectedCourseId} embedded role="student" />;
+  const source: Record<string, unknown> = isRecord(data) ? (data as Record<string, unknown>) : {};
   const recommendations = collectRecommendations(data).filter((item) => {
     if (!item.estado_revision || !["APROBADA", "EDITADA"].includes(item.estado_revision)) return false;
     if (!selectedCourseId) return true;

@@ -6,11 +6,24 @@ export type LoginCredentials = {
 export type AuthTokenResponse = {
   access?: string;
   refresh?: string;
-  token?: string;
-  auth_token?: string;
+  mfa_required?: boolean;
+  rol?: string;
+  challenge_id?: string;
+  expires_in?: number;
   detail?: string;
   message?: string;
   non_field_errors?: string[];
+  session?: {
+    idle_timeout_seconds?: number;
+    access_expires_in_seconds?: number;
+    refresh_rotation?: boolean;
+  };
+};
+
+export type MfaChallenge = {
+  challengeId: string;
+  expiresIn: number | null;
+  message: string;
 };
 
 export type AuthMenuItem = {
@@ -38,10 +51,6 @@ export type AuthUser = {
   is_staff: boolean;
   is_superuser: boolean;
   groups: string[];
-  roles?: string[];
-  primary_role?: string | null;
-  primaryRole?: string | null;
-  role?: string | null;
   perfil_id: number | null;
   estudiante_id: number | null;
   docente_id: number | null;
@@ -56,4 +65,15 @@ export type AuthSession = {
   primaryRole: string | null;
   menuItems: AuthMenuItem[];
   dashboard: unknown;
+  sessionPolicy?: {
+    idleTimeoutSeconds: number | null;
+    accessExpiresInSeconds: number | null;
+    refreshRotation: boolean;
+  };
 };
+
+export type LoginResult = AuthSession | MfaChallenge;
+
+export function isMfaChallenge(result: LoginResult): result is MfaChallenge {
+  return "challengeId" in result;
+}

@@ -3,7 +3,9 @@ import type {
   AuthSession,
   AuthTokenResponse,
   AuthUser,
+  LoginResult,
   LoginCredentials,
+  MfaChallenge,
 } from "../types/auth.types";
 
 // Relative URLs use Vite's proxy in development. Deployments can point the
@@ -13,16 +15,21 @@ const CONFIGURED_API_URL = (
   import.meta.env.VITE_API_BASE_URL ??
   ""
 ).trim();
-const API_BASE_URL = import.meta.env.DEV ? "" : CONFIGURED_API_URL;
+const API_BASE_URL = import.meta.env.DEV
+  ? ""
+  : CONFIGURED_API_URL.replace(/\/api\/?$/, "");
 const AUTH_TOKEN_URL = "/api/auth/token/";
 const AUTH_TOKEN_REFRESH_URL = "/api/auth/token/refresh/";
+const AUTH_MFA_VERIFY_URL = "/api/auth/mfa/verify/";
 const AUTH_ME_URL = "/api/auth/me/";
 const AUTH_MENU_URL = "/api/auth/menu/";
 const DASHBOARD_URL = "/api/dashboard/";
 
 const AUTH_SESSION_KEY = "sga.auth.session";
+const MFA_CHALLENGE_KEY = "sga.auth.mfa.challenge";
 export const AUTH_SESSION_EXPIRED_EVENT = "sga.auth.session.expired";
 export const AUTH_SESSION_UPDATED_EVENT = "sga.auth.session.updated";
+let refreshInFlight: Promise<AuthSession> | null = null;
 
 function apiUrl(input: RequestInfo | URL) {
   if (input instanceof URL) return input;
@@ -40,19 +47,43 @@ async function apiFetch(
 ): Promise<Response> {
   try {
     return await fetch(apiUrl(input), init);
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      error.name === "AbortError"
+    ) {
+      throw error;
+    }
     throw new Error(
       "No se pudo conectar con el servidor del SGA. Verifica la configuracion de VITE_API_URL y que el backend este disponible.",
     );
   }
 }
 
-function getErrorMessage(data: AuthTokenResponse | null) {
-  if (data?.detail) return data.detail;
-  if (data?.message) return data.message;
-  if (data?.non_field_errors?.length) return data.non_field_errors[0];
+export function publicAuthFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  return apiFetch(input, init);
+}
 
-  return "No se pudo iniciar sesion. Verifica tus credenciales.";
+function getErrorMessage(data: unknown, fallback = "No se pudo completar la solicitud.") {
+  if (typeof data === "string" && data.trim()) return data;
+  if (!data || typeof data !== "object") return fallback;
+
+  const response = data as Record<string, unknown>;
+  for (const key of ["detail", "message", "error"]) {
+    if (typeof response[key] === "string" && response[key].trim()) {
+      return response[key];
+    }
+  }
+
+  for (const value of Object.values(response)) {
+    if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+
+  return fallback;
 }
 
 function isTokenInvalidResponse(status: number, data: unknown) {
@@ -98,15 +129,6 @@ function roleName(value: unknown): string | null {
   return typeof name === "string" && name.trim() ? name.trim() : null;
 }
 
-function extractRoles(user: AuthUser) {
-  const candidates = [
-    ...(Array.isArray(user.roles) ? user.roles : []),
-    ...(Array.isArray(user.groups) ? user.groups : []),
-  ];
-
-  return [...new Set(candidates.map(roleName).filter((role): role is string => Boolean(role)))];
-}
-
 function normalizeUser(data: unknown): AuthUser {
   if (!data || typeof data !== "object") {
     throw new Error("La API no retorno un usuario valido.");
@@ -118,12 +140,8 @@ function normalizeUser(data: unknown): AuthUser {
       ? (response.user as Record<string, unknown>)
       : response;
   const rawGroups = rawUser.groups ?? response.groups;
-  const rawRoles = rawUser.roles ?? response.roles;
   const groups = Array.isArray(rawGroups)
     ? rawGroups.map(roleName).filter((role): role is string => Boolean(role))
-    : [];
-  const roles = Array.isArray(rawRoles)
-    ? rawRoles.map(roleName).filter((role): role is string => Boolean(role))
     : [];
   const firstName = String(rawUser.first_name ?? "");
   const lastName = String(rawUser.last_name ?? "");
@@ -138,15 +156,6 @@ function normalizeUser(data: unknown): AuthUser {
     is_staff: Boolean(rawUser.is_staff),
     is_superuser: Boolean(rawUser.is_superuser),
     groups,
-    roles,
-    primary_role: roleName(
-      rawUser.primary_role ??
-        rawUser.primaryRole ??
-        response.primary_role ??
-        response.primaryRole ??
-        rawUser.role ??
-        response.role,
-    ),
     perfil_id: Number(rawUser.perfil_id) || null,
     estudiante_id: Number(rawUser.estudiante_id) || null,
     docente_id: Number(rawUser.docente_id) || null,
@@ -154,8 +163,23 @@ function normalizeUser(data: unknown): AuthUser {
   };
 }
 
+function normalizeMenu(data: unknown) {
+  const response = data && typeof data === "object"
+    ? (data as Record<string, unknown>)
+    : {};
+  const roles = Array.isArray(response.roles)
+    ? response.roles.map(roleName).filter((role): role is string => Boolean(role))
+    : [];
+
+  return {
+    items: extractMenuItems(data),
+    primaryRole: roleName(response.role),
+    roles: [...new Set(roles)],
+  };
+}
+
 function mapTokenResponse(data: AuthTokenResponse) {
-  const token = data.access ?? data.token ?? data.auth_token;
+  const token = data.access;
 
   if (!token) {
     throw new Error("La API no retorno un token de autenticacion valido.");
@@ -164,7 +188,35 @@ function mapTokenResponse(data: AuthTokenResponse) {
   return {
     token,
     refreshToken: data.refresh,
+    sessionPolicy: data.session ? {
+      idleTimeoutSeconds: Number(data.session.idle_timeout_seconds) || null,
+      accessExpiresInSeconds: Number(data.session.access_expires_in_seconds) || null,
+      refreshRotation: Boolean(data.session.refresh_rotation),
+    } : undefined,
   };
+}
+
+function getMfaChallenge(
+  data: AuthTokenResponse | null,
+): MfaChallenge | null {
+  if (!data?.mfa_required || !data.challenge_id) return null;
+
+  return {
+    challengeId: data.challenge_id,
+    expiresIn: typeof data.expires_in === "number" ? data.expires_in : null,
+    message: data.detail ?? data.message ?? "Enviamos un codigo de verificacion a tu correo institucional.",
+  };
+}
+
+async function readLoginResponse(
+  response: Response,
+): Promise<AuthTokenResponse | MfaChallenge> {
+  const data = (await response.json().catch(() => null)) as AuthTokenResponse | null;
+  const challenge = getMfaChallenge(data);
+
+  if (challenge) return challenge;
+  if (response.ok && data) return data;
+  throw new Error(getErrorMessage(data, "No se pudo iniciar sesion."));
 }
 
 async function readJson<TData>(response: Response): Promise<TData> {
@@ -172,22 +224,7 @@ async function readJson<TData>(response: Response): Promise<TData> {
 
   if (response.ok && data !== null) return data;
 
-  if (response.status === 400) {
-    throw new Error("Credenciales invalidas.");
-  }
-
-  if (response.status === 403) {
-    throw new Error("No tienes permiso para acceder a este recurso.");
-  }
-
-  if (response.status >= 500) {
-    throw new Error(
-      getErrorMessage(data as AuthTokenResponse | null) ||
-        "El servidor del SGA no esta disponible.",
-    );
-  }
-
-  throw new Error(getErrorMessage(data as AuthTokenResponse | null));
+  throw new Error(getErrorMessage(data, "El servidor del SGA no pudo completar la solicitud."));
 }
 
 async function fetchAuthenticatedJson<TData>(
@@ -210,20 +247,18 @@ async function loadSessionResources(token: string) {
     fetchAuthenticatedJson<unknown>(DASHBOARD_URL, token),
   ]);
   const user = normalizeUser(userData);
-  const roles = extractRoles(user);
-  const primaryRole =
-    user.primary_role ?? user.primaryRole ?? user.role ?? roles[0] ?? null;
+  const menu = normalizeMenu(menuData);
 
   return {
     dashboard,
-    menuItems: extractMenuItems(menuData),
-    primaryRole,
-    roles,
+    menuItems: menu.items,
+    primaryRole: menu.primaryRole,
+    roles: menu.roles,
     user,
   };
 }
 
-export async function login(credentials: LoginCredentials): Promise<AuthSession> {
+export async function login(credentials: LoginCredentials): Promise<LoginResult> {
   const response = await apiFetch(AUTH_TOKEN_URL, {
     method: "POST",
     headers: {
@@ -231,7 +266,11 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
     },
     body: JSON.stringify(credentials),
   });
-  const data = await readJson<AuthTokenResponse>(response);
+  const data = await readLoginResponse(response);
+  if ("challengeId" in data) {
+    saveMfaChallenge(data);
+    return data;
+  }
   const tokenData = mapTokenResponse(data);
   const resources = await loadSessionResources(tokenData.token);
 
@@ -239,6 +278,30 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
     ...tokenData,
     ...resources,
   };
+}
+
+export async function verifyMfa(
+  challenge: MfaChallenge,
+  code: string,
+): Promise<AuthSession> {
+  const response = await apiFetch(AUTH_MFA_VERIFY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      challenge_id: challenge.challengeId,
+      codigo: code,
+    }),
+  });
+  const data = (await response.json().catch(() => null)) as AuthTokenResponse | null;
+
+  if (!response.ok || !data) {
+    throw new Error(getErrorMessage(data, "No se pudo verificar el codigo."));
+  }
+
+  const tokenData = mapTokenResponse(data);
+  clearMfaChallenge();
+  const resources = await loadSessionResources(tokenData.token);
+  return { ...tokenData, ...resources };
 }
 
 export async function getCurrentUser(token: string): Promise<AuthUser> {
@@ -264,6 +327,7 @@ export async function refreshSession(refreshToken: string): Promise<AuthSession>
     ...currentSession,
     ...tokenData,
     refreshToken: tokenData.refreshToken ?? refreshToken,
+    sessionPolicy: tokenData.sessionPolicy ?? currentSession?.sessionPolicy,
     ...resources,
   };
 }
@@ -277,6 +341,27 @@ export async function restoreSession(
     ...session,
     ...resources,
   };
+}
+
+export function saveMfaChallenge(challenge: MfaChallenge) {
+  sessionStorage.setItem(MFA_CHALLENGE_KEY, JSON.stringify(challenge));
+}
+
+export function getStoredMfaChallenge(): MfaChallenge | null {
+  const value = sessionStorage.getItem(MFA_CHALLENGE_KEY);
+  if (!value) return null;
+
+  try {
+    const challenge = JSON.parse(value) as MfaChallenge;
+    return challenge.challengeId ? challenge : null;
+  } catch {
+    sessionStorage.removeItem(MFA_CHALLENGE_KEY);
+    return null;
+  }
+}
+
+export function clearMfaChallenge() {
+  sessionStorage.removeItem(MFA_CHALLENGE_KEY);
 }
 
 export function saveSession(session: AuthSession) {
@@ -304,6 +389,7 @@ export function getStoredSession(): AuthSession | null {
 
 export function clearSession() {
   sessionStorage.removeItem(AUTH_SESSION_KEY);
+  clearMfaChallenge();
 }
 
 export function expireSession() {
@@ -315,6 +401,9 @@ export async function authFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
+  const path = typeof input === "string" ? input : input instanceof URL ? input.pathname : "";
+  const isPublicAuthRoute = [AUTH_TOKEN_URL, AUTH_MFA_VERIFY_URL, AUTH_TOKEN_REFRESH_URL, "/api/auth/logout/"].some((route) => path.includes(route)) || path.includes("/api/auth/password-reset/");
+  if (isPublicAuthRoute) return apiFetch(input, init);
   const session = getStoredSession();
   const headers = new Headers(init.headers);
 
@@ -341,8 +430,12 @@ export async function authFetch(
   }
 
   try {
-    const refreshedSession = await refreshSession(session.refreshToken);
-    saveSession(refreshedSession);
+    if (!refreshInFlight) {
+      refreshInFlight = refreshSession(session.refreshToken)
+        .then((refreshed) => { saveSession(refreshed); return refreshed; })
+        .finally(() => { refreshInFlight = null; });
+    }
+    const refreshedSession = await refreshInFlight;
 
     const retryHeaders = new Headers(init.headers);
     retryHeaders.set("Authorization", `Bearer ${refreshedSession.token}`);

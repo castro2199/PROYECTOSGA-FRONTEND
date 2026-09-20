@@ -3,6 +3,8 @@ import { PaginationControls } from "../../../shared/components/PaginationControl
 import { useClientPagination } from "../../../shared/hooks/useClientPagination";
 import {
   getTeacherCourseCriteria,
+  getTeacherCourseCapabilities,
+  createTeacherCourseCriterion,
   getTeacherCoursePeriods,
   getTeacherCourseStudents,
   getTeacherGradeRecords,
@@ -12,6 +14,7 @@ import type {
   GradePayload,
   TeacherCourse,
   TeacherCriterion,
+  TeacherCourseCapability,
   TeacherGradeRecord,
   TeacherPeriod,
   TeacherStudent,
@@ -41,6 +44,12 @@ export function TeacherGradesPage({ course }: Props) {
   const [students, setStudents] = useState<TeacherStudent[]>([]);
   const [periods, setPeriods] = useState<TeacherPeriod[]>([]);
   const [criteria, setCriteria] = useState<TeacherCriterion[]>([]);
+  const [capabilities, setCapabilities] = useState<TeacherCourseCapability[]>([]);
+  const [capabilityId, setCapabilityId] = useState("");
+  const [showNewCriterion, setShowNewCriterion] = useState(false);
+  const [newCriterionName, setNewCriterionName] = useState("");
+  const [newCriterionDescription, setNewCriterionDescription] = useState("");
+  const [isCreatingCriterion, setIsCreatingCriterion] = useState(false);
   const [records, setRecords] = useState<TeacherGradeRecord[]>([]);
   const [periodId, setPeriodId] = useState("");
   const [criterionId, setCriterionId] = useState("");
@@ -59,16 +68,19 @@ export function TeacherGradesPage({ course }: Props) {
       getTeacherCourseStudents(course.id),
       getTeacherCoursePeriods(course.id),
       getTeacherCourseCriteria(course.id),
+      getTeacherCourseCapabilities(course.id),
       getTeacherGradeRecords(),
     ])
-      .then(([studentItems, periodItems, criterionItems, gradeItems]) => {
+      .then(([studentItems, periodItems, criterionItems, capabilityItems, gradeItems]) => {
         if (ignore) return;
         setStudents(studentItems);
         setPeriods(periodItems);
         setCriteria(criterionItems);
+        setCapabilities(capabilityItems.filter((item) => item.estado === 1));
         setRecords(gradeItems.filter((item) => item.asignacion_curso_id === course.id));
         setPeriodId(periodItems[0] ? String(periodItems[0].id) : "");
-        setCriterionId(criterionItems[0] ? String(criterionItems[0].id) : "");
+        setCapabilityId("");
+        setCriterionId("");
       })
       .catch((requestError) => setError(message(requestError)))
       .finally(() => {
@@ -79,6 +91,21 @@ export function TeacherGradesPage({ course }: Props) {
       ignore = true;
     };
   }, [course.id]);
+
+  const selectedCapability = capabilities.find((item) => item.id === Number(capabilityId));
+  const visibleCriteria = useMemo(() => criteria.filter((criterion) => !capabilityId || Number(criterion.capacidad) === Number(capabilityId)), [capabilityId, criteria]);
+  const capabilitiesByCompetency = useMemo(() => new Map(capabilities.map((item) => [item.competencia_label, capabilities.filter((candidate) => candidate.competencia === item.competencia)])), [capabilities]);
+
+  const createCriterion = async () => {
+    if (!capabilityId) return setError("Selecciona una capacidad para crear el criterio.");
+    if (newCriterionName.trim().length < 3) return setError("El nombre del criterio debe tener al menos 3 caracteres.");
+    if (newCriterionDescription.trim() && newCriterionDescription.trim().length < 10) return setError("La descripcion debe tener al menos 10 caracteres.");
+    setIsCreatingCriterion(true); setError(null);
+    try {
+      const created = await createTeacherCourseCriterion(course.id, { capacidad: Number(capabilityId), nombre: newCriterionName.trim(), ...(newCriterionDescription.trim() ? { descripcion: newCriterionDescription.trim() } : {}) });
+      setCriteria((items) => [...items, created]); setCriterionId(String(created.id)); setShowNewCriterion(false); setNewCriterionName(""); setNewCriterionDescription("");
+    } catch (requestError) { setError(message(requestError)); } finally { setIsCreatingCriterion(false); }
+  };
 
   const selectedRecords = useMemo(
     () =>
@@ -158,7 +185,7 @@ export function TeacherGradesPage({ course }: Props) {
   return (
     <div className="space-y-4">
       <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-theme-xs">
-        <div className="grid gap-4 lg:grid-cols-[1fr_1.5fr_auto] lg:items-end">
+        <div className="grid gap-4 lg:grid-cols-4 lg:items-end">
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">Periodo academico</label>
             <select className={inputClass} disabled={isLoading || isSaving} onChange={(event) => { setPeriodId(event.target.value); setError(null); }} value={periodId}>
@@ -167,15 +194,25 @@ export function TeacherGradesPage({ course }: Props) {
             </select>
           </div>
           <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Capacidad</label>
+            <select className={inputClass} disabled={isLoading || isSaving} onChange={(event) => { setCapabilityId(event.target.value); setCriterionId(""); setError(null); }} value={capabilityId}>
+              <option value="">Seleccionar capacidad</option>
+              {[...capabilitiesByCompetency.entries()].map(([competency, items]) => <optgroup key={competency} label={competency}>{items.map((capability) => <option key={capability.id} value={capability.id}>{capability.nombre}</option>)}</optgroup>)}
+            </select>
+          </div>
+          <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">Criterio de calificacion</label>
             <select className={inputClass} disabled={isLoading || isSaving} onChange={(event) => { setCriterionId(event.target.value); setError(null); }} value={criterionId}>
               <option value="">Seleccionar criterio</option>
-              {criteria.map((criterion) => <option key={criterion.id} value={criterion.id}>{criterionLabel(criterion)}</option>)}
+              {visibleCriteria.map((criterion) => <option key={criterion.id} value={criterion.id}>{criterionLabel(criterion)}</option>)}
             </select>
+            {capabilityId && <button className="mt-2 text-xs font-semibold text-brand-600" onClick={() => setShowNewCriterion(true)} type="button">Nuevo criterio</button>}
           </div>
           <button className="h-11 rounded-lg bg-brand-500 px-5 text-sm font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50" disabled={isLoading || isSaving || students.length === 0 || !isDirty} onClick={saveGrades} type="button">{isSaving ? "Guardando..." : "Guardar calificaciones"}</button>
         </div>
       </section>
+
+      {showNewCriterion && <section className="rounded-lg border border-brand-100 bg-brand-50 p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="font-bold text-gray-900">Nuevo criterio</h3><p className="mt-1 text-sm text-gray-600">{selectedCapability?.competencia_label} / {selectedCapability?.nombre}</p></div><button className="text-sm font-semibold text-gray-600" onClick={() => setShowNewCriterion(false)} type="button">Cancelar</button></div><div className="mt-4 grid gap-3 md:grid-cols-2"><input className={inputClass} minLength={3} onChange={(event) => setNewCriterionName(event.target.value)} placeholder="Nombre del criterio" value={newCriterionName} /><input className={inputClass} minLength={10} onChange={(event) => setNewCriterionDescription(event.target.value)} placeholder="Descripcion opcional" value={newCriterionDescription} /></div><button className="mt-3 h-10 rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white disabled:opacity-50" disabled={isCreatingCriterion} onClick={() => void createCriterion()} type="button">{isCreatingCriterion ? "Guardando..." : "Guardar criterio"}</button></section>}
 
       {error && <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {success && <div className="rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div>}

@@ -4,6 +4,8 @@ import type {
   AuthSession,
   AuthUser,
   LoginCredentials,
+  LoginResult,
+  MfaChallenge,
 } from "../types/auth.types";
 
 export type AuthContextValue = {
@@ -16,7 +18,8 @@ export type AuthContextValue = {
   dashboard: unknown;
   isAuthenticated: boolean;
   isInitializing: boolean;
-  login: (credentials: LoginCredentials) => Promise<AuthSession>;
+  login: (credentials: LoginCredentials) => Promise<LoginResult>;
+  verifyMfa: (challenge: MfaChallenge, code: string) => Promise<AuthSession>;
   logout: () => void;
   refreshAccessToken: () => Promise<string | null>;
   refreshSessionData: () => Promise<void>;
